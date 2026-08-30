@@ -685,3 +685,97 @@ body {
   font-weight: 700;
   color: var(--text-main);
 }
+/* ==========================================================================
+   ESTILOS DE VACACIONES Y MÉTRICAS
+   ========================================================================== */
+
+/* Barra de métricas (Horas y Vacaciones) */
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-label {
+  font-size: 0.72rem;
+  color: var(--text-dim, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-top: 2px;
+}
+
+/* Botón y Badges de Vacaciones */
+.btn-vacation {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.btn-vacation.active {
+  background: #10b981;
+  color: #0b0f19;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.badge-vacation {
+  background: #10b981;
+  color: #0b0f19;
+  font-weight: bold;
+}
+
+/* Celda de día en vacaciones en el calendario */
+.day-cell.vacation-day {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border: 1px solid rgba(16, 185, 129, 0.5) !important;
+}
+
+.day-cell.range-selecting {
+  background: rgba(245, 158, 11, 0.25) !important;
+  border: 1px dashed #f59e0b !important;
+}
+
+/* Botón de Selección por Rango */
+.btn-range-mode {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.btn-range-mode.active {
+  background: #f59e0b;
+  color: #0b0f19;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+.btn-undo {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-undo:hover {
+  background: rgba(148, 163, 184, 0.3);
+  color: #ffffff;
+}

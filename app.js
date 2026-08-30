@@ -1,37 +1,95 @@
 /* ==========================================================================
-   CONFIGURACIÓN BASE Y ANCLA DEL TURNO
+   CONFIGURACIÓN BASE Y ANCLA DEL TURNO (2N-4L)
    ========================================================================== */
 const ANCHOR_DATE = new Date(2026, 8, 4); // 04/09/2026 = Noche 1
 
 const SHIFT_MAP = {
-  0: { code: 'N1', name: 'Noche 1 (22:00 - 07:00)', canWorkout: true, energyLevel: '85%', energyStatus: '⚡ ALTA ENERGÍA (Pre-turno)', desc: 'Mañana de clase (08:00-14:00) o entreno previo a las 06:30. Tarde libre con siesta pre-turno obligatoria (18:00-21:00).' },
-  1: { code: 'N2', name: 'Noche 2 (22:00 - 07:00)', canWorkout: false, energyLevel: '40%', energyStatus: '⚠️ TRABAJANDO / RESERVA BIOMÉTRICA', desc: 'Salida del primer turno a las 07:00. Si hay clase (08:00-14:00), el descanso principal se traslada a la tarde (14:30-21:00).' },
-  2: { code: 'L1', name: 'Saliente de Noche (Libre 1)', canWorkout: false, energyLevel: '30%', energyStatus: '🛑 RECUPERACIÓN BIOMÉTRICA', desc: 'Salida del turno a las 07:00. Sueño recuperador matutino/mediodía. Tarde libre para descanso pasivo u ocio de bajo impacto.' },
-  3: { code: 'L2', name: 'Día Libre 2', canWorkout: true, energyLevel: '100%', energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', desc: 'Totalmente restaurado. Entreno 06:30, clase 08:00-14:00 y toda la tarde libre para hobbies, estudio o proyectos.' },
-  4: { code: 'L3', name: 'Día Libre 3', canWorkout: true, energyLevel: '100%', energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', desc: 'Rendimiento máximo. Entreno 06:30, clase por la mañana y tarde completa para deporte, estudio o vida social.' },
-  5: { code: 'L4', name: 'Día Libre 4', canWorkout: true, energyLevel: '90%', energyStatus: '🟢 RENDIMIENTO ALTO', desc: 'Último libre. Clase de 08:00 a 14:00. Tarde relajada y descanso temprano preparando el reinicio de noche de mañana.' }
+  0: { 
+    code: 'N1', 
+    name: 'Noche 1 (22:00 - 07:00)', 
+    hours: 9,
+    canWorkout: true, 
+    energyLevel: '85%', 
+    energyStatus: '⚡ ALTA ENERGÍA (Pre-turno)', 
+    desc: 'Mañana de clase (08:00-14:00) o entreno previo. Tarde libre con siesta pre-turno obligatoria.',
+    restAdvice: '💤 **Siesta Pre-Turno:** Dormir 90 min (18:30 a 20:00). Evita cafeína a partir de las 19:00.'
+  },
+  1: { 
+    code: 'N2', 
+    name: 'Noche 2 (22:00 - 07:00)', 
+    hours: 9,
+    canWorkout: false, 
+    energyLevel: '40%', 
+    energyStatus: '⚠️ TRABAJANDO / RESERVA BIOMÉTRICA', 
+    desc: 'Salida del primer turno a las 07:00. Descanso tras la clase o al medio día.',
+    restAdvice: '🕶️ **Fase Crítica:** Al salir a las 07:00, usa gafas de sol oscuras. Bloque de sueño de 14:30 a 21:00.'
+  },
+  2: { 
+    code: 'L1', 
+    name: 'Saliente de Noche (Libre 1)', 
+    hours: 0,
+    canWorkout: false, 
+    energyLevel: '30%', 
+    energyStatus: '🛑 RECUPERACIÓN BIOMÉTRICA', 
+    desc: 'Salida del turno a las 07:00. Sueño recuperador matutino/mediodía.',
+    restAdvice: '🛌 **Recuperación Saliente:** Prioriza 6h de sueño inmediato (07:30 a 13:30). Habitación a oscuras.'
+  },
+  3: { 
+    code: 'L2', 
+    name: 'Día Libre 2', 
+    hours: 0,
+    canWorkout: true, 
+    energyLevel: '100%', 
+    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', 
+    desc: 'Totalmente restaurado. Entreno 06:30, clase y tarde libre.',
+    restAdvice: '🌙 **Normalización Circadiana:** Dormir en horario nocturno natural (23:00 a 06:30).'
+  },
+  4: { 
+    code: 'L3', 
+    name: 'Día Libre 3', 
+    hours: 0,
+    canWorkout: true, 
+    energyLevel: '100%', 
+    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', 
+    desc: 'Rendimiento máximo. Entreno 06:30, clase y tarde completa libre.',
+    restAdvice: '⚡ **Consolidación:** Mantén la higiene del sueño nocturno (8h continuas).'
+  },
+  5: { 
+    code: 'L4', 
+    name: 'Día Libre 4', 
+    hours: 0,
+    canWorkout: true, 
+    energyLevel: '90%', 
+    energyStatus: '🟢 RENDIMIENTO ALTO', 
+    desc: 'Último libre. Clase de 08:00 a 14:00. Tarde relajada acumulando descanso.',
+    restAdvice: '😴 **Carga Previa:** Dormir al menos 8h esta noche preparando el reinicio de noches.'
+  }
 };
 
 /* ==========================================================================
-   ESTADO GLOBAL Y PERSISTENCIA
+   ESTADO GLOBAL, SELECCIÓN POR RANGO Y HISTORIAL (UNDO)
    ========================================================================== */
-let currentDate = new Date(); // Fecha navegada en calendario
-const todayDate = new Date(); // Día actual real
-let selectedDateStr = formatDateKey(todayDate);
+let currentDate = new Date(); 
+let selectedDateStr = formatDateKey(new Date()); 
 
 let tasksStorage = JSON.parse(localStorage.getItem('shift_planner_tasks')) || {};
 let overridesStorage = JSON.parse(localStorage.getItem('shift_planner_overrides')) || {};
 
+// Historial para deshacer
+let historyStack = [];
+
+// Variables para selección de rango de vacaciones
+let isRangeMode = false;
+let rangeStartDate = null;
+
 /* ==========================================================================
    ELEMENTOS DEL DOM
    ========================================================================== */
-// Vistas
 const viewToday = document.getElementById('view-today');
 const viewCalendar = document.getElementById('view-calendar');
 const btnOpenCalendar = document.getElementById('btn-open-calendar');
 const btnBackToToday = document.getElementById('btn-back-to-today');
 
-// Vista Hoy
 const todayFullDate = document.getElementById('today-full-date');
 const todayShiftBadge = document.getElementById('today-shift-badge');
 const todayEnergyStatus = document.getElementById('today-energy-status');
@@ -44,7 +102,6 @@ const todayTaskInput = document.getElementById('today-task-input');
 const todayTaskSlot = document.getElementById('today-task-slot');
 const todayTaskList = document.getElementById('today-task-list');
 
-// Vista Calendario
 const monthDisplay = document.getElementById('current-month-display');
 const calendarGrid = document.getElementById('calendar-grid');
 const btnPrevMonth = document.getElementById('btn-prev-month');
@@ -54,17 +111,47 @@ const selectedDateTitle = document.getElementById('selected-date-title');
 const selectedWeekdaySubtitle = document.getElementById('selected-weekday-subtitle');
 const shiftBadgeDetail = document.getElementById('shift-badge-detail');
 const energyDescription = document.getElementById('energy-description');
+const restRecommendationText = document.getElementById('rest-recommendation-text');
 const timelineContainer = document.getElementById('timeline-container');
 
 const btnToggleSchool = document.getElementById('btn-toggle-school');
 const btnToggleWorkout = document.getElementById('btn-toggle-workout');
+const btnToggleVacation = document.getElementById('btn-toggle-vacation');
+const btnRangeMode = document.getElementById('btn-range-mode');
+const btnUndo = document.getElementById('btn-undo');
 const btnClearDay = document.getElementById('btn-clear-day');
 const btnResetDay = document.getElementById('btn-reset-day');
+
+const monthlyHoursDisplay = document.getElementById('monthly-hours-display');
+const annualHoursDisplay = document.getElementById('annual-hours-display');
+const vacationCountDisplay = document.getElementById('vacation-count-display');
 
 const taskForm = document.getElementById('task-form');
 const taskInput = document.getElementById('task-input');
 const taskTimeSlot = document.getElementById('task-time-slot');
 const taskList = document.getElementById('task-list');
+
+/* ==========================================================================
+   FUNCIONES DE HISTORIAL (DESHACER)
+   ========================================================================== */
+function pushStateToHistory() {
+  historyStack.push(JSON.stringify(overridesStorage));
+  if (historyStack.length > 30) historyStack.shift(); // Conserva los últimos 30 cambios
+}
+
+function undoLastAction() {
+  if (historyStack.length === 0) return;
+
+  const previousState = historyStack.pop();
+  overridesStorage = JSON.parse(previousState);
+  localStorage.setItem('shift_planner_overrides', JSON.stringify(overridesStorage));
+
+  renderTodayView();
+  if (!viewCalendar.classList.contains('hidden')) {
+    const [year, month, day] = selectedDateStr.split('-').map(Number);
+    selectCalendarDate(new Date(year, month - 1, day));
+  }
+}
 
 /* ==========================================================================
    FUNCIONES AUXILIARES
@@ -108,7 +195,6 @@ function calculateMonthlyWorkouts(year, month) {
 
     if (currentWeek.length === 7) {
       const eligibleDays = currentWeek.filter(d => getShiftInfo(d).canWorkout);
-
       if (eligibleDays.length >= 3) {
         workoutSet.add(formatDateKey(eligibleDays[0]));
         workoutSet.add(formatDateKey(eligibleDays[Math.floor(eligibleDays.length / 2)]));
@@ -135,16 +221,61 @@ function getEffectiveDayState(date, autoWorkoutDays) {
   let hasSchool = (dayOfWeek >= 0 && dayOfWeek <= 4);
   let hasWorkout = autoWorkoutDays.has(dateKey);
   let isCleared = false;
+  let isVacation = override.isVacation || false;
 
   if (override.noSchool !== undefined) hasSchool = !override.noSchool;
   if (override.workout !== undefined) hasWorkout = override.workout;
+
   if (override.cleared === true) {
     isCleared = true;
     hasSchool = false;
     hasWorkout = false;
   }
 
-  return { shift, hasSchool, hasWorkout, isCleared, override };
+  return { shift, hasSchool, hasWorkout, isCleared, isVacation, override };
+}
+
+/* ==========================================================================
+   CÁLCULO DE HORAS Y MÉTRICAS
+   ========================================================================== */
+function updateMetricsDisplays() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  let monthlyHours = 0;
+  let annualHours = 0;
+  let annualVacations = 0;
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const autoWorkouts = calculateMonthlyWorkouts(year, month);
+    const state = getEffectiveDayState(date, autoWorkouts);
+
+    if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
+      monthlyHours += state.shift.hours;
+    }
+  }
+
+  for (let m = 0; m < 12; m++) {
+    const totalDays = new Date(year, m + 1, 0).getDate();
+    const autoWorkouts = calculateMonthlyWorkouts(year, m);
+
+    for (let d = 1; d <= totalDays; d++) {
+      const date = new Date(year, m, d);
+      const state = getEffectiveDayState(date, autoWorkouts);
+
+      if (state.isVacation) {
+        annualVacations++;
+      } else if (!state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
+        annualHours += state.shift.hours;
+      }
+    }
+  }
+
+  if (monthlyHoursDisplay) monthlyHoursDisplay.innerText = `${monthlyHours}h`;
+  if (annualHoursDisplay) annualHoursDisplay.innerText = `${annualHours}h`;
+  if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacations} días`;
 }
 
 /* ==========================================================================
@@ -159,30 +290,27 @@ function renderTodayView() {
   const options = { weekday: 'long', day: 'numeric', month: 'long' };
   todayFullDate.innerText = today.toLocaleDateString('es-ES', options);
 
-  todayShiftBadge.className = `badge badge-${state.shift.code}`;
-  todayShiftBadge.innerText = state.isCleared ? "Día Vacío" : state.shift.name;
+  todayShiftBadge.className = `badge badge-${state.isVacation ? 'vacation' : state.shift.code}`;
+  todayShiftBadge.innerText = state.isVacation ? "🌴 VACACIONES" : (state.isCleared ? "Día Vacío" : state.shift.name);
 
-  todayEnergyStatus.innerText = state.shift.energyStatus;
-  todayEnergyDesc.innerHTML = state.isCleared 
-    ? `Día despejado manualmente.`
-    : `<strong>Batería: ${state.shift.energyLevel}</strong> — ${state.shift.desc}`;
+  todayEnergyStatus.innerText = state.isVacation ? "🌴 TURNO CANCELADO (VACACIONES)" : state.shift.energyStatus;
+  todayEnergyDesc.innerHTML = state.isVacation
+    ? `Día de vacaciones activado. Noche de trabajo liberada.`
+    : (state.isCleared ? `Día despejado manualmente.` : `<strong>Batería: ${state.shift.energyLevel}</strong> — ${state.shift.desc}`);
 
-  // Botones de conmutación
   todayToggleSchool.className = `btn btn-toggle ${state.hasSchool ? 'active' : 'disabled-override'}`;
   todayToggleSchool.innerText = `🎓 Clase: ${state.hasSchool ? 'SÍ' : 'NO'}`;
 
   todayToggleWorkout.className = `btn btn-toggle ${state.hasWorkout ? 'active' : 'disabled-override'}`;
   todayToggleWorkout.innerText = `🏋️ Entreno: ${state.hasWorkout ? 'SÍ' : 'NO'}`;
 
-  // Timeline
   renderBlocksIntoContainer(state, todayTimeline);
-
-  // Tareas
   renderTasksForDate(dateKey, todayTaskList);
+  updateMetricsDisplays();
 }
 
 /* ==========================================================================
-   RENDERIZADO DE TIMELINE
+   RENDERIZADO DE BLOQUES HORARIOS
    ========================================================================== */
 function renderBlocksIntoContainer(state, targetContainer) {
   targetContainer.innerHTML = '';
@@ -195,18 +323,23 @@ function renderBlocksIntoContainer(state, targetContainer) {
   let blocks = [];
   const shift = state.shift;
 
-  if (shift.index === 0) { // Noche 1
+  if (state.isVacation) {
+    if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entreno Manteniendo Rutina', type: 'workout' });
+    if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
+    blocks.push({ time: 'Todo el día', title: '🌴 VACACIONES: Noche de Trabajo Cancelada', type: 'free' });
+  } 
+  else if (shift.index === 0) { // N1
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entrenamiento Fuerza / Cardio', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
     blocks.push({ time: '14:00 - 18:00', title: '📖 Estudio / Hobbies / Comida', type: 'free' });
-    blocks.push({ time: '18:00 - 21:00', title: '☕ Descanso / Siesta Pre-turno', type: 'free' });
-    blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 1', type: 'work' });
+    blocks.push({ time: '18:30 - 20:00', title: '☕ Siesta Pre-turno (90 min)', type: 'sleep' });
+    blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 1 (9h)', type: 'work' });
   } 
-  else if (shift.index === 1) { // Noche 2
+  else if (shift.index === 1) { // N2
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entreno Matutino', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
     blocks.push({ time: '14:30 - 21:00', title: '😴 Sueño Principal Recuperador', type: 'sleep' });
-    blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 2', type: 'work' });
+    blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 2 (9h)', type: 'work' });
   } 
   else if (shift.index === 2) { // Saliente
     blocks.push({ time: '07:30 - 14:30', title: '😴 Sueño Obligatorio Saliente', type: 'sleep' });
@@ -229,21 +362,19 @@ function renderBlocksIntoContainer(state, targetContainer) {
 }
 
 /* ==========================================================================
-   RENDERIZADO DE CALENDARIO
+   CALENDARIO Y APLICACIÓN DE RANGOS DE VACACIONES
    ========================================================================== */
 function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  
   monthDisplay.innerText = `${monthNames[month]} ${year}`;
-
   calendarGrid.innerHTML = '';
 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDayIndex = (firstDay.getDay() + 6) % 7;
-
   const autoWorkoutDays = calculateMonthlyWorkouts(year, month);
   const todayKey = formatDateKey(new Date());
 
@@ -259,12 +390,18 @@ function renderCalendar() {
     const state = getEffectiveDayState(date, autoWorkoutDays);
 
     const cell = document.createElement('div');
-    cell.className = `day-cell ${selectedDateStr === dateKey ? 'selected' : ''} ${todayKey === dateKey ? 'today' : ''} ${state.isCleared ? 'cleared-day' : ''}`;
+    const isRangeStart = rangeStartDate && formatDateKey(rangeStartDate) === dateKey;
     
-    cell.onclick = () => selectCalendarDate(date);
+    cell.className = `day-cell ${selectedDateStr === dateKey ? 'selected' : ''} ${todayKey === dateKey ? 'today' : ''} ${state.isVacation ? 'vacation-day' : ''} ${isRangeStart ? 'range-selecting' : ''}`;
+    
+    cell.onclick = () => handleDateClick(date);
 
     let badgesHTML = '';
-    if (!state.isCleared) {
+    if (state.isVacation) {
+      badgesHTML += `<span class="badge badge-vacation">🌴</span>`;
+      if (state.hasWorkout) badgesHTML += `<span class="badge badge-workout">🏋️</span>`;
+      if (state.hasSchool) badgesHTML += `<span class="badge badge-school">🎓</span>`;
+    } else if (!state.isCleared) {
       badgesHTML += `<span class="badge badge-${state.shift.code}">${state.shift.code}</span>`;
       if (state.hasWorkout) badgesHTML += `<span class="badge badge-workout">🏋️</span>`;
       if (state.hasSchool) badgesHTML += `<span class="badge badge-school">🎓</span>`;
@@ -279,6 +416,54 @@ function renderCalendar() {
 
     calendarGrid.appendChild(cell);
   }
+
+  updateMetricsDisplays();
+}
+
+function handleDateClick(date) {
+  if (isRangeMode) {
+    if (!rangeStartDate) {
+      rangeStartDate = date;
+      if (btnRangeMode) btnRangeMode.innerText = "👉 Haz clic en el día FIN de vacaciones";
+      renderCalendar();
+    } else {
+      applyVacationRange(rangeStartDate, date);
+      isRangeMode = false;
+      rangeStartDate = null;
+      if (btnRangeMode) {
+        btnRangeMode.classList.remove('active');
+        btnRangeMode.innerText = "🌴 Seleccionar Rango de Vacaciones";
+      }
+      selectCalendarDate(date);
+    }
+  } else {
+    selectCalendarDate(date);
+  }
+}
+
+function applyVacationRange(startDate, endDate) {
+  pushStateToHistory(); // Guardar copia antes de modificar
+
+  let start = normalizeDate(startDate);
+  let end = normalizeDate(endDate);
+
+  if (start > end) {
+    const temp = start;
+    start = end;
+    end = temp;
+  }
+
+  let runner = new Date(start);
+  while (runner <= end) {
+    const key = formatDateKey(runner);
+    if (!overridesStorage[key]) overridesStorage[key] = {};
+    overridesStorage[key].isVacation = true;
+    overridesStorage[key].cleared = false;
+    runner.setDate(runner.getDate() + 1);
+  }
+
+  localStorage.setItem('shift_planner_overrides', JSON.stringify(overridesStorage));
+  renderTodayView();
 }
 
 function selectCalendarDate(date) {
@@ -293,12 +478,18 @@ function selectCalendarDate(date) {
   selectedDateTitle.innerText = date.toLocaleDateString('es-ES', options);
   selectedWeekdaySubtitle.innerText = date.toLocaleDateString('es-ES', weekdayOptions).toUpperCase();
 
-  shiftBadgeDetail.className = `badge badge-${state.shift.code}`;
-  shiftBadgeDetail.innerText = state.isCleared ? "Día Vacío" : state.shift.name;
+  shiftBadgeDetail.className = `badge badge-${state.isVacation ? 'vacation' : state.shift.code}`;
+  shiftBadgeDetail.innerText = state.isVacation ? "🌴 Vacaciones" : (state.isCleared ? "Día Vacío" : state.shift.name);
 
-  energyDescription.innerHTML = state.isCleared 
-    ? `Día despejado manualmente.` 
-    : `<strong>Batería estimada: ${state.shift.energyLevel} (${state.shift.energyStatus})</strong><br>${state.shift.desc}`;
+  energyDescription.innerHTML = state.isVacation
+    ? `Día marcado como vacaciones. Noche cancelada (Horas: 0h).`
+    : (state.isCleared ? `Día despejado manualmente.` : `<strong>Batería estimada: ${state.shift.energyLevel} (${state.shift.energyStatus})</strong><br>${state.shift.desc}`);
+
+  if (restRecommendationText) {
+    restRecommendationText.innerHTML = state.isVacation 
+      ? `🌴 **Vacaciones:** Noche de trabajo libre. Mantienes tus rutinas de clase o entreno activas.`
+      : state.shift.restAdvice;
+  }
 
   btnToggleSchool.className = `btn btn-toggle ${state.hasSchool ? 'active' : 'disabled-override'}`;
   btnToggleSchool.innerText = `🎓 Clase: ${state.hasSchool ? 'SÍ' : 'NO'}`;
@@ -306,12 +497,99 @@ function selectCalendarDate(date) {
   btnToggleWorkout.className = `btn btn-toggle ${state.hasWorkout ? 'active' : 'disabled-override'}`;
   btnToggleWorkout.innerText = `🏋️ Entreno: ${state.hasWorkout ? 'SÍ' : 'NO'}`;
 
+  if (btnToggleVacation) {
+    btnToggleVacation.className = `btn btn-vacation ${state.isVacation ? 'active' : ''}`;
+    btnToggleVacation.innerText = `🌴 Vacaciones: ${state.isVacation ? 'SÍ' : 'NO'}`;
+  }
+
   renderBlocksIntoContainer(state, timelineContainer);
   renderTasksForDate(selectedDateStr, taskList);
 }
 
 /* ==========================================================================
-   GESTIÓN DE TAREAS
+   EVENTOS DE BOTONES Y MODIFICACIONES
+   ========================================================================== */
+function saveCalendarOverride(updateFn) {
+  if (!selectedDateStr) return;
+  pushStateToHistory(); // Guardar copia antes de modificar
+
+  if (!overridesStorage[selectedDateStr]) overridesStorage[selectedDateStr] = {};
+
+  updateFn(overridesStorage[selectedDateStr]);
+  localStorage.setItem('shift_planner_overrides', JSON.stringify(overridesStorage));
+
+  const [year, month, day] = selectedDateStr.split('-').map(Number);
+  selectCalendarDate(new Date(year, month - 1, day));
+  renderTodayView();
+}
+
+if (btnUndo) {
+  btnUndo.addEventListener('click', () => undoLastAction());
+}
+
+if (btnRangeMode) {
+  btnRangeMode.addEventListener('click', () => {
+    isRangeMode = !isRangeMode;
+    rangeStartDate = null;
+    if (isRangeMode) {
+      btnRangeMode.classList.add('active');
+      btnRangeMode.innerText = "👉 Haz clic en el día INICIO de vacaciones";
+    } else {
+      btnRangeMode.classList.remove('active');
+      btnRangeMode.innerText = "🌴 Seleccionar Rango de Vacaciones";
+    }
+    renderCalendar();
+  });
+}
+
+btnToggleSchool.addEventListener('click', () => {
+  saveCalendarOverride(ov => {
+    const [year, month, day] = selectedDateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const autoWorkoutDays = calculateMonthlyWorkouts(date.getFullYear(), date.getMonth());
+    const currentState = getEffectiveDayState(date, autoWorkoutDays);
+    ov.cleared = false;
+    ov.noSchool = currentState.hasSchool;
+  });
+});
+
+btnToggleWorkout.addEventListener('click', () => {
+  saveCalendarOverride(ov => {
+    const [year, month, day] = selectedDateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const autoWorkoutDays = calculateMonthlyWorkouts(date.getFullYear(), date.getMonth());
+    const currentState = getEffectiveDayState(date, autoWorkoutDays);
+    ov.cleared = false;
+    ov.workout = !currentState.hasWorkout;
+  });
+});
+
+if (btnToggleVacation) {
+  btnToggleVacation.addEventListener('click', () => {
+    saveCalendarOverride(ov => {
+      ov.isVacation = !ov.isVacation;
+      if (ov.isVacation) ov.cleared = false;
+    });
+  });
+}
+
+btnClearDay.addEventListener('click', () => {
+  saveCalendarOverride(ov => { ov.cleared = true; ov.isVacation = false; });
+});
+
+btnResetDay.addEventListener('click', () => {
+  if (!selectedDateStr) return;
+  pushStateToHistory();
+  delete overridesStorage[selectedDateStr];
+  localStorage.setItem('shift_planner_overrides', JSON.stringify(overridesStorage));
+  
+  const [year, month, day] = selectedDateStr.split('-').map(Number);
+  selectCalendarDate(new Date(year, month - 1, day));
+  renderTodayView();
+});
+
+/* ==========================================================================
+   TAREAS, NAVEGACIÓN E INICIALIZACIÓN
    ========================================================================== */
 function renderTasksForDate(dateKey, listElement) {
   listElement.innerHTML = '';
@@ -354,12 +632,10 @@ function deleteTask(dateKey, index) {
   }
 }
 
-/* ==========================================================================
-   EVENTOS Y CAMBIO DE VISTAS
-   ========================================================================== */
 btnOpenCalendar.addEventListener('click', () => {
   viewToday.classList.add('hidden');
   viewCalendar.classList.remove('hidden');
+  currentDate = new Date();
   renderCalendar();
   selectCalendarDate(new Date());
 });
@@ -370,7 +646,6 @@ btnBackToToday.addEventListener('click', () => {
   renderTodayView();
 });
 
-// Formularios
 todayTaskForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = todayTaskInput.value.trim();
@@ -391,11 +666,11 @@ taskForm.addEventListener('submit', (e) => {
   }
 });
 
-// Conmutadores vista de Hoy
 todayToggleSchool.addEventListener('click', () => toggleOverrideForDate(new Date(), 'noSchool'));
 todayToggleWorkout.addEventListener('click', () => toggleOverrideForDate(new Date(), 'workout'));
 
 function toggleOverrideForDate(date, field) {
+  pushStateToHistory();
   const dateKey = formatDateKey(date);
   if (!overridesStorage[dateKey]) overridesStorage[dateKey] = {};
   
@@ -410,11 +685,16 @@ function toggleOverrideForDate(date, field) {
   renderTodayView();
 }
 
-// Navegación de meses
-btnPrevMonth.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
-btnNextMonth.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+btnPrevMonth.addEventListener('click', () => { 
+  currentDate.setMonth(currentDate.getMonth() - 1); 
+  renderCalendar(); 
+});
 
-/* Inicialización */
+btnNextMonth.addEventListener('click', () => { 
+  currentDate.setMonth(currentDate.getMonth() + 1); 
+  renderCalendar(); 
+});
+
 (function init() {
   renderTodayView();
 })();
