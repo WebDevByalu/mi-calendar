@@ -1,110 +1,156 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor Personal de Turnos, Estudio y Entrenamiento</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Icono vectorial SVG para móviles y navegadores -->
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mi Agenda</title>
+  
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<!-- Enlace al manifest y colores del sistema -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0b0f19">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- CABECERA -->
-        <header class="main-header">
-            <div class="header-titles">
-                <h1>Planificador de Rendimiento & Turnos</h1>
-                <p class="subtitle">Rotación: 2 Noches (22:00-07:00) + 4 Libres | Ancla: 04/09/2026 (Noche 1)</p>
+
+  <div class="app-container">
+
+    <!-- ================= VISTA 1: HOY (PANTALLA PRINCIPAL) ================= -->
+    <main id="view-today" class="view-section active">
+      <header class="today-header">
+        <div class="today-date-badge">
+          <span class="badge-label">HOY</span>
+          <h1 id="today-full-date">Cargando...</h1>
+        </div>
+        <button id="btn-open-calendar" class="btn btn-secondary nav-calendar-btn">
+          📅 Ver Calendario
+        </button>
+      </header>
+
+      <!-- Tarjeta Principal de Energía y Turno -->
+      <section class="today-hero-card">
+        <div class="hero-header">
+          <span id="today-shift-badge" class="badge">N1</span>
+          <div id="today-energy-status" class="energy-status-pill">⚡ Cargando...</div>
+        </div>
+        <div class="hero-body">
+          <p id="today-energy-desc">Cargando detalles del día...</p>
+        </div>
+      </section>
+
+      <!-- Botones de Ajuste Rápido de hoy -->
+      <section class="quick-controls">
+        <button id="today-toggle-school" class="btn btn-toggle">🎓 Clase: SÍ</button>
+        <button id="today-toggle-workout" class="btn btn-toggle">🏋️ Entreno: SÍ</button>
+      </section>
+
+      <!-- Horario / Timeline del día -->
+      <section class="card-section">
+        <h3>⏱️ Horario de Hoy</h3>
+        <div id="today-timeline" class="timeline-container"></div>
+      </section>
+
+      <!-- Tareas y Hobbies de hoy -->
+      <section class="card-section">
+        <h3>📝 Tareas y Hobbies</h3>
+        <form id="today-task-form" class="task-form">
+          <input type="text" id="today-task-input" placeholder="Añadir algo para hoy..." required>
+          <select id="today-task-slot">
+            <option value="Mañana">Mañana</option>
+            <option value="Tarde">Tarde</option>
+            <option value="Noche">Noche</option>
+          </select>
+          <button type="submit" class="btn btn-primary">+</button>
+        </form>
+        <ul id="today-task-list" class="task-list"></ul>
+      </section>
+    </main>
+
+
+    <!-- ================= VISTA 2: CALENDARIO COMPLETO ================= -->
+    <main id="view-calendar" class="view-section hidden">
+      <header class="main-header">
+        <button id="btn-back-to-today" class="btn btn-secondary">
+          ← Volver a Hoy
+        </button>
+        <div class="month-navigation">
+          <button id="btn-prev-month" class="btn">&lt;</button>
+          <h2 id="current-month-display">Septiembre 2026</h2>
+          <button id="btn-next-month" class="btn">&gt;</button>
+        </div>
+      </header>
+
+      <div class="main-content">
+        <!-- Rejilla de días -->
+        <section class="calendar-section">
+          <div class="legend-bar">
+            <div class="legend-item"><span class="color-dot night-1"></span> Noche 1</div>
+            <div class="legend-item"><span class="color-dot night-2"></span> Noche 2</div>
+            <div class="legend-item"><span class="color-dot rest-1"></span> Saliente</div>
+            <div class="legend-item"><span class="color-dot rest-off"></span> Libre</div>
+            <div class="legend-item"><span class="color-dot workout"></span> Entreno</div>
+            <div class="legend-item"><span class="color-dot school"></span> Clase</div>
+          </div>
+
+          <div class="weekdays-header">
+            <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div>
+            <div>Vie</div><div>Sáb</div><div>Dom</div>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </section>
+
+        <!-- Detalle de día seleccionado en el calendario -->
+        <aside class="detail-sidebar">
+          <div class="sidebar-header">
+            <div>
+              <h3 id="selected-date-title">Selecciona un día</h3>
+              <div id="selected-weekday-subtitle" class="weekday-subtitle">---</div>
             </div>
-            
-            <div class="month-navigation">
-                <button id="btn-prev-month" class="btn btn-icon">&lt; Anterior</button>
-                <h2 id="current-month-display">Septiembre 2026</h2>
-                <button id="btn-today" class="btn btn-secondary">Hoy</button>
-                <button id="btn-next-month" class="btn btn-icon">Siguiente &gt;</button>
+            <span id="shift-badge-detail" class="badge">---</span>
+          </div>
+
+          <div class="override-section">
+            <h4>Acciones Rápidas</h4>
+            <div class="controls-grid">
+              <button id="btn-toggle-school" class="btn btn-toggle">🎓 Clase</button>
+              <button id="btn-toggle-workout" class="btn btn-toggle">🏋️ Entreno</button>
+              <button id="btn-clear-day" class="btn btn-danger-soft">🧹 Vaciar</button>
+              <button id="btn-reset-day" class="btn">🔄 Reset</button>
             </div>
-        </header>
+          </div>
 
-        <!-- CONTENIDO PRINCIPAL -->
-        <main class="main-content">
-            <!-- CALENDARIO -->
-            <section class="calendar-section">
-                <div class="legend-bar">
-                    <div class="legend-item"><span class="color-dot night-1"></span> Noche 1</div>
-                    <div class="legend-item"><span class="color-dot night-2"></span> Noche 2</div>
-                    <div class="legend-item"><span class="color-dot rest-1"></span> Saliente (L1)</div>
-                    <div class="legend-item"><span class="color-dot rest-off"></span> Días Libres (L2-L4)</div>
-                    <div class="legend-item"><span class="color-dot workout"></span> Entreno 06:30</div>
-                    <div class="legend-item"><span class="color-dot school"></span> Grado Superior</div>
-                </div>
+          <div class="energy-card">
+            <h4>Estado Estimado</h4>
+            <p id="energy-description">Haz clic en cualquier fecha para consultar los detalles.</p>
+          </div>
 
-                <div class="weekdays-header">
-                    <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
-                </div>
+          <div class="timeline-section">
+            <h4>Planificación</h4>
+            <div id="timeline-container" class="timeline-container"></div>
+          </div>
 
-                <div id="calendar-grid" class="calendar-grid"></div>
-            </section>
+          <div class="tasks-section">
+            <h4>Tareas / Hobbies</h4>
+            <form id="task-form" class="task-form">
+              <input type="text" id="task-input" placeholder="Añadir plan..." required>
+              <select id="task-time-slot">
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noche">Noche</option>
+              </select>
+              <button type="submit" class="btn btn-primary">+</button>
+            </form>
+            <ul id="task-list" class="task-list"></ul>
+          </div>
+        </aside>
+      </div>
+    </main>
 
-            <!-- PANEL LATERAL CON EDICIÓN -->
-            <aside class="detail-sidebar" id="detail-sidebar">
-                <div class="sidebar-header">
-                    <div>
-                        <h3 id="selected-date-title">Selecciona un día</h3>
-                        <span id="selected-weekday-subtitle" class="weekday-subtitle">---</span>
-                    </div>
-                    <span id="shift-badge-detail" class="badge">---</span>
-                </div>
+  </div>
 
-                <!-- CONTROLES DE SOBRESCRITURA MANUAL -->
-                <div class="override-section">
-                    <h4>Modificar Eventos del Día</h4>
-                    <div class="controls-grid">
-                        <button id="btn-toggle-school" class="btn btn-toggle">🎓 Alternar Clase</button>
-                        <button id="btn-toggle-workout" class="btn btn-toggle">🏋️ Alternar Entreno</button>
-                        <button id="btn-clear-day" class="btn btn-danger-soft">🧹 Vaciar Día</button>
-                        <button id="btn-reset-day" class="btn btn-secondary">🔄 Restablecer</button>
-                    </div>
-                </div>
-
-                <!-- DIAGNÓSTICO -->
-                <div class="energy-card">
-                    <h4>Diagnóstico de Energía & Descanso</h4>
-                    <p id="energy-description">Haz clic en cualquier día para ajustar eventos o ver la planificación recomendada.</p>
-                </div>
-
-                <!-- TIMELINE -->
-                <div class="timeline-section">
-                    <h4>Horario Recomendado</h4>
-                    <div id="timeline-container" class="timeline-container">
-                        <div class="empty-state">No hay ningún día seleccionado.</div>
-                    </div>
-                </div>
-
-                <!-- TAREAS Y HOBBIES -->
-                <div class="tasks-section">
-                    <h4>Hobbies & Tareas (Huecos Libres)</h4>
-                    <form id="task-form" class="task-form">
-                        <input type="text" id="task-input" placeholder="Ej: Guitarra, Leer cap. 3..." required>
-                        <select id="task-time-slot">
-                            <option value="Mañana">Mañana</option>
-                            <option value="Tarde">Tarde</option>
-                            <option value="Noche">Noche</option>
-                        </select>
-                        <button type="submit" class="btn btn-primary">+</button>
-                    </form>
-                    <ul id="task-list" class="task-list"></ul>
-                </div>
-            </aside>
-        </main>
-    </div>
-
-    <script src="app.js" defer></script>
+  <script src="app.js"></script>
 </body>
 </html>
