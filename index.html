@@ -12,6 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+  <!-- Librería para exportar a Excel (xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -111,8 +114,10 @@
             </div>
             <span id="shift-badge-detail" class="badge">---</span>
           </div>
-<button id="btn-range-mode" class="btn btn-range-mode">🌴 Seleccionar Rango de Vacaciones</button>
-<button id="btn-undo" class="btn btn-undo" style="margin-bottom: 10px; width: 100%;">↩️ Deshacer Última Acción</button>
+
+          <button id="btn-range-mode" class="btn btn-range-mode">🌴 Seleccionar Rango de Vacaciones</button>
+          <button id="btn-undo" class="btn btn-undo" style="margin-bottom: 10px; width: 100%;">↩️ Deshacer Última Acción</button>
+          
           <div class="override-section">
             <h4>Acciones Rápidas</h4>
             <div class="controls-grid">
@@ -132,21 +137,23 @@
             <h4>Planificación</h4>
             <div id="timeline-container" class="timeline-container"></div>
           </div>
-<!-- BARRA DE MÉTRICAS -->
-<div class="metrics-bar">
-  <div class="metric-card">
-    <span class="metric-label">Horas Mes</span>
-    <span id="monthly-hours-display" class="metric-value">0h</span>
-  </div>
-  <div class="metric-card">
-    <span class="metric-label">Horas Año</span>
-    <span id="annual-hours-display" class="metric-value">0h</span>
-  </div>
-  <div class="metric-card">
-    <span class="metric-label">Vacaciones</span>
-    <span id="vacation-count-display" class="metric-value">0 días</span>
-  </div>
-</div>
+
+          <!-- BARRA DE MÉTRICAS -->
+          <div class="metrics-bar">
+            <div class="metric-card">
+              <span class="metric-label">Horas Mes</span>
+              <span id="monthly-hours-display" class="metric-value">0h</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Horas Año</span>
+              <span id="annual-hours-display" class="metric-value">0h</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Vacaciones</span>
+              <span id="vacation-count-display" class="metric-value">0 días</span>
+            </div>
+          </div>
+
           <div class="tasks-section">
             <h4>Tareas / Hobbies</h4>
             <form id="task-form" class="task-form">
@@ -160,10 +167,55 @@
             </form>
             <ul id="task-list" class="task-list"></ul>
           </div>
+
+          <!-- SECCIÓN REGISTRO DE NOCHE Y EXCEL (Solo visible en N1 y N2 mediante JS) -->
+          <div id="night-reports-section" class="card-section hidden" style="margin-top: 20px;">
+            <h4>👮 Parte del Turno de Noche</h4>
+            <form id="night-report-form">
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">Seguridad / Novedades:</label>
+                <input type="text" id="report-security" placeholder="Ej: Control en acceso sur sin novedades" style="width: 100%;">
+              </div>
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">Actas levantadas:</label>
+                <input type="number" id="report-actas" placeholder="0" min="0" value="0" style="width: 100%;">
+              </div>
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">Detenidos:</label>
+                <input type="number" id="report-detenidos" placeholder="0" min="0" value="0" style="width: 100%;">
+              </div>
+              <div style="margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">Incidencias Reseñables:</label>
+                <textarea id="report-incidencias" rows="2" placeholder="Detalle de incidencias..." style="width: 100%; resize: vertical;"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 8px;">💾 Guardar Parte</button>
+            </form>
+            <button id="btn-export-excel" class="btn btn-secondary" style="width: 100%;">
+              📊 Exportar Parte de Noche a Excel
+            </button>
+          </div>
+
         </aside>
       </div>
     </main>
 
+  </div>
+
+  <!-- MODAL RESUMEN NOCTURNO -->
+  <div id="summary-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>🌙 Plan para Mañana</h2>
+        <button id="btn-close-modal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="summary-date-text" class="summary-date"></p>
+        <div id="summary-list" class="summary-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-ack-modal" class="btn btn-range-mode">¡Entendido! 👍</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
