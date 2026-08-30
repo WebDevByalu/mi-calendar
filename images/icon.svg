@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Fondo con bordes redondeados tipo App de móvil -->
+  <rect width="512" height="512" rx="110" fill="#0b0f19"/>
+  
+  <!-- Gradiente de color -->
+  <defs>
+    <linearGradient id="icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Anillo exterior decorativo -->
+  <rect x="24" y="24" width="464" height="464" rx="90" fill="none" stroke="url(#icon-grad)" stroke-width="8" opacity="0.4"/>
+
+  <!-- Icono del Rayo (Rendimiento / Turnos) -->
+  <path d="M290 50 L130 290 H270 L230 462 L400 220 H260 Z" fill="url(#icon-grad)"/>
+</svg>
