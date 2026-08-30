@@ -238,14 +238,19 @@ function getEffectiveDayState(date, autoWorkoutDays) {
 /* ==========================================================================
    CÁLCULO DE HORAS Y MÉTRICAS
    ========================================================================== */
+/* ==========================================================================
+   CÁLCULO DE HORAS Y MÉTRICAS (CORREGIDO)
+   ========================================================================== */
 function updateMetricsDisplays() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const today = normalizeDate(new Date());
 
   let monthlyHours = 0;
-  let annualHours = 0;
-  let annualVacations = 0;
+  let annualWorkedHours = 0;      // Horas acumuladas efectivamente hasta HOY
+  let annualVacationDaysCount = 0; // Días de vacaciones gastados (solo en días de turno)
 
+  // 1. Horas del mes visualizado actualmente en el calendario
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
@@ -257,6 +262,7 @@ function updateMetricsDisplays() {
     }
   }
 
+  // 2. Horas anuales acumuladas hasta la fecha actual (Enero -> Hoy)
   for (let m = 0; m < 12; m++) {
     const totalDays = new Date(year, m + 1, 0).getDate();
     const autoWorkouts = calculateMonthlyWorkouts(year, m);
@@ -264,20 +270,27 @@ function updateMetricsDisplays() {
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(year, m, d);
       const state = getEffectiveDayState(date, autoWorkouts);
+      const isShiftDay = (state.shift.code === 'N1' || state.shift.code === 'N2');
 
-      if (state.isVacation) {
-        annualVacations++;
-      } else if (!state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
-        annualHours += state.shift.hours;
+      // Las vacaciones solo descuentan día si caían en un día de trabajo (N1 o N2)
+      if (state.isVacation && isShiftDay) {
+        annualVacationDaysCount++;
+      }
+
+      // Sumar horas si no es vacaciones/despejado y la fecha es igual o anterior a HOY
+      if (!state.isVacation && !state.isCleared && isShiftDay) {
+        if (normalizeDate(date) <= today) {
+          annualWorkedHours += state.shift.hours;
+        }
       }
     }
   }
 
+  // Renderizar en los badges del HTML
   if (monthlyHoursDisplay) monthlyHoursDisplay.innerText = `${monthlyHours}h`;
-  if (annualHoursDisplay) annualHoursDisplay.innerText = `${annualHours}h`;
-  if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacations} días`;
+  if (annualHoursDisplay) annualHoursDisplay.innerText = `${annualWorkedHours}h`;
+  if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacationDaysCount} días`;
 }
-
 /* ==========================================================================
    RENDERIZADO DE LA PANTALLA PRINCIPAL (HOY)
    ========================================================================== */
