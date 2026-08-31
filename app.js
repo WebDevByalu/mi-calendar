@@ -244,52 +244,61 @@ function getEffectiveDayState(date, autoWorkoutDays) {
 /* ==========================================================================
    CÁLCULO DE HORAS Y MÉTRICAS
    ========================================================================== */
+/* ==========================================================================
+   CÁLCULO DE HORAS Y MÉTRICAS
+   ========================================================================== */
 function updateMetricsDisplays() {
+  // Definimos el año y mes basándonos en el calendario actual
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const today = normalizeDate(new Date());
 
   let monthlyHours = 0;
-  let annualWorkedHours = 0;
   let annualVacationDaysCount = 0;
 
+  // 1. Cálculo de horas del mes seleccionado
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const autoWorkoutsMonth = calculateMonthlyWorkouts(year, month);
+  
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
-    const autoWorkouts = calculateMonthlyWorkouts(year, month);
-    const state = getEffectiveDayState(date, autoWorkouts);
+    const state = getEffectiveDayState(date, autoWorkoutsMonth);
 
+    // Sumar horas (9h) por cada N1 o N2 que se trabaje
     if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
       monthlyHours += state.shift.hours;
     }
   }
 
+  // 2. Cálculo de días de vacaciones de todo el año
   for (let m = 0; m < 12; m++) {
     const totalDays = new Date(year, m + 1, 0).getDate();
-    const autoWorkouts = calculateMonthlyWorkouts(year, m);
+    const autoWorkoutsYearMonth = calculateMonthlyWorkouts(year, m);
 
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(year, m, d);
-      const state = getEffectiveDayState(date, autoWorkouts);
+      const state = getEffectiveDayState(date, autoWorkoutsYearMonth);
+      
       const isShiftDay = (state.shift.code === 'N1' || state.shift.code === 'N2');
-
+      // Solo sumamos vacaciones si caen en día de turno (N1 o N2)
       if (state.isVacation && isShiftDay) {
         annualVacationDaysCount++;
-      }
-
-      if (!state.isVacation && !state.isCleared && isShiftDay) {
-        if (normalizeDate(date) <= today) {
-          annualWorkedHours += state.shift.hours;
-        }
       }
     }
   }
 
+  // 3. Imprimir datos en pantalla
   if (monthlyHoursDisplay) monthlyHoursDisplay.innerText = `${monthlyHours}h`;
-  if (annualHoursDisplay) annualHoursDisplay.innerText = `${annualWorkedHours}h`;
   if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacationDaysCount} días`;
+  
+  // Ocultar el cuadro de horas anuales por si todavía estuviera en tu HTML
+  if (annualHoursDisplay && annualHoursDisplay.parentElement) {
+    annualHoursDisplay.parentElement.style.display = 'none';
+  }
 }
 
+/* ==========================================================================
+   RENDERIZADO DE VISTA PRINCIPAL (HOY)
+   ========================================================================== */
 /* ==========================================================================
    RENDERIZADO DE VISTA PRINCIPAL (HOY)
    ========================================================================== */
@@ -319,6 +328,22 @@ function renderTodayView() {
   renderBlocksIntoContainer(state, todayTimeline);
   renderTasksForDate(dateKey, todayTaskList);
   updateMetricsDisplays();
+
+  // NUEVO: Ocultar o mostrar el panel de Partes de Noche en la vista "Hoy"
+  if (nightReportsSection) {
+    if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
+      nightReportsSection.classList.remove('hidden'); // Mostrar si trabajas N1 o N2
+      
+      // Cargar los datos si ya habías escrito algo para hoy
+      const existingReport = nightReportsStorage[dateKey] || {};
+      reportSecurity.value = existingReport.security || '';
+      reportActas.value = existingReport.actas || 0;
+      reportDetenidos.value = existingReport.detenidos || 0;
+      reportIncidencias.value = existingReport.incidencias || '';
+    } else {
+      nightReportsSection.classList.add('hidden'); // Ocultar si es libre, vacaciones o día borrado
+    }
+  }
 }
 
 /* ==========================================================================
@@ -854,7 +879,12 @@ setInterval(checkNightlySummaryTrigger, 60000);
 /* ==========================================================================
    INICIALIZACIÓN
    ========================================================================== */
+/* ==========================================================================
+   INICIALIZACIÓN
+   ========================================================================== */
 (function init() {
   renderTodayView();
-  showTomorrowSummary();
+  // Sustituimos showTomorrowSummary() por el trigger condicional
+  // Solo saltará si te metes a la app y son las 22:30 o más
+  checkNightlySummaryTrigger(); 
 })();
