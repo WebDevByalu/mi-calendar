@@ -1,3 +1,21 @@
+
+/* ==========================================================================
+   CONFIGURACIÓN DE FIREBASE
+   ========================================================================== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyDnQRku28HpNHf4ECR9A-MgbfQ6TGvx9P8",
+    authDomain: "calendariotareas-b1dfe.firebaseapp.com",
+    projectId: "calendariotareas-b1dfe",
+    storageBucket: "calendariotareas-b1dfe.firebasestorage.app",
+    messagingSenderId: "585502491069",
+    appId: "1:585502491069:web:ed72732100ddeb0c3ad2d4"
+  };
+
+// Inicializamos Firebase y la Base de Datos (Firestore)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+
 /* ==========================================================================
    CONFIGURACIÓN BASE Y ANCLA DEL TURNO (2N-4L)
    ========================================================================== */
@@ -67,14 +85,12 @@ const SHIFT_MAP = {
 };
 
 /* ==========================================================================
-   ESTADO GLOBAL, SELECCIÓN POR RANGO Y HISTORIAL (UNDO)
+   ESTADO GLOBAL Y HISTORIAL (UNDO)
    ========================================================================== */
 let currentDate = new Date(); 
 let selectedDateStr = formatDateKey(new Date()); 
 
-let tasksStorage = JSON.parse(localStorage.getItem('shift_planner_tasks')) || {};
 let overridesStorage = JSON.parse(localStorage.getItem('shift_planner_overrides')) || {};
-let nightReportsStorage = JSON.parse(localStorage.getItem('shift_planner_night_reports')) || {};
 let historyStack = [];
 let isRangeMode = false;
 let rangeStartDate = null;
@@ -244,18 +260,13 @@ function getEffectiveDayState(date, autoWorkoutDays) {
 /* ==========================================================================
    CÁLCULO DE HORAS Y MÉTRICAS
    ========================================================================== */
-/* ==========================================================================
-   CÁLCULO DE HORAS Y MÉTRICAS
-   ========================================================================== */
 function updateMetricsDisplays() {
-  // Definimos el año y mes basándonos en el calendario actual
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   let monthlyHours = 0;
   let annualVacationDaysCount = 0;
 
-  // 1. Cálculo de horas del mes seleccionado
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const autoWorkoutsMonth = calculateMonthlyWorkouts(year, month);
   
@@ -263,13 +274,11 @@ function updateMetricsDisplays() {
     const date = new Date(year, month, d);
     const state = getEffectiveDayState(date, autoWorkoutsMonth);
 
-    // Sumar horas (9h) por cada N1 o N2 que se trabaje
     if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
       monthlyHours += state.shift.hours;
     }
   }
 
-  // 2. Cálculo de días de vacaciones de todo el año
   for (let m = 0; m < 12; m++) {
     const totalDays = new Date(year, m + 1, 0).getDate();
     const autoWorkoutsYearMonth = calculateMonthlyWorkouts(year, m);
@@ -279,26 +288,20 @@ function updateMetricsDisplays() {
       const state = getEffectiveDayState(date, autoWorkoutsYearMonth);
       
       const isShiftDay = (state.shift.code === 'N1' || state.shift.code === 'N2');
-      // Solo sumamos vacaciones si caen en día de turno (N1 o N2)
       if (state.isVacation && isShiftDay) {
         annualVacationDaysCount++;
       }
     }
   }
 
-  // 3. Imprimir datos en pantalla
   if (monthlyHoursDisplay) monthlyHoursDisplay.innerText = `${monthlyHours}h`;
   if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacationDaysCount} días`;
   
-  // Ocultar el cuadro de horas anuales por si todavía estuviera en tu HTML
   if (annualHoursDisplay && annualHoursDisplay.parentElement) {
     annualHoursDisplay.parentElement.style.display = 'none';
   }
 }
 
-/* ==========================================================================
-   RENDERIZADO DE VISTA PRINCIPAL (HOY)
-   ========================================================================== */
 /* ==========================================================================
    RENDERIZADO DE VISTA PRINCIPAL (HOY)
    ========================================================================== */
@@ -329,19 +332,12 @@ function renderTodayView() {
   renderTasksForDate(dateKey, todayTaskList);
   updateMetricsDisplays();
 
-  // NUEVO: Ocultar o mostrar el panel de Partes de Noche en la vista "Hoy"
   if (nightReportsSection) {
     if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
-      nightReportsSection.classList.remove('hidden'); // Mostrar si trabajas N1 o N2
-      
-      // Cargar los datos si ya habías escrito algo para hoy
-      const existingReport = nightReportsStorage[dateKey] || {};
-      reportSecurity.value = existingReport.security || '';
-      reportActas.value = existingReport.actas || 0;
-      reportDetenidos.value = existingReport.detenidos || 0;
-      reportIncidencias.value = existingReport.incidencias || '';
+      nightReportsSection.classList.remove('hidden');
+      cargarParteNoche(dateKey); // Carga desde Firebase
     } else {
-      nightReportsSection.classList.add('hidden'); // Ocultar si es libre, vacaciones o día borrado
+      nightReportsSection.classList.add('hidden');
     }
   }
 }
@@ -544,11 +540,7 @@ function selectCalendarDate(date) {
   if (nightReportsSection) {
     if (!state.isVacation && !state.isCleared && (state.shift.code === 'N1' || state.shift.code === 'N2')) {
       nightReportsSection.classList.remove('hidden');
-      const existingReport = nightReportsStorage[selectedDateStr] || {};
-      reportSecurity.value = existingReport.security || '';
-      reportActas.value = existingReport.actas || 0;
-      reportDetenidos.value = existingReport.detenidos || 0;
-      reportIncidencias.value = existingReport.incidencias || '';
+      cargarParteNoche(selectedDateStr); // Carga desde Firebase
     } else {
       nightReportsSection.classList.add('hidden');
     }
@@ -636,49 +628,120 @@ btnResetDay.addEventListener('click', () => {
 });
 
 /* ==========================================================================
-   TAREAS Y NAVEGACIÓN
+   CONEXIÓN CON FIREBASE: TAREAS Y PARTES DE NOCHE
    ========================================================================== */
-function renderTasksForDate(dateKey, listElement) {
-  listElement.innerHTML = '';
-  const tasks = tasksStorage[dateKey] || [];
 
-  if (tasks.length === 0) {
-    listElement.innerHTML = `<li style="font-size:0.8rem; color:var(--text-dim); text-align:center;">No hay tareas ni hobbies guardados.</li>`;
-    return;
-  }
-
-  tasks.forEach((task, index) => {
-    const li = document.createElement('li');
-    li.className = 'task-item';
-    li.innerHTML = `
-      <div>
-        <span>${task.text}</span>
-        <span class="task-tag">${task.slot}</span>
-      </div>
-      <button class="delete-btn" onclick="deleteTask('${dateKey}', ${index})">&times;</button>
-    `;
-    listElement.appendChild(li);
+// 1. Añadir tarea a Firestore
+function addTaskForDate(dateStr, text, slot) {
+  db.collection('tareas').add({
+    fecha: dateStr,
+    texto: text,
+    slot: slot || 'General',
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  })
+  .then((docRef) => {
+    console.log("¡Tarea guardada en la base de datos! ID: ", docRef.id);
+  })
+  .catch((error) => {
+    console.error("Error al guardar la tarea: ", error);
   });
 }
 
-function addTaskForDate(dateKey, text, slot) {
-  if (!tasksStorage[dateKey]) tasksStorage[dateKey] = [];
-  tasksStorage[dateKey].push({ text, slot });
-  localStorage.setItem('shift_planner_tasks', JSON.stringify(tasksStorage));
-  renderTodayView();
-  if (!viewCalendar.classList.contains('hidden')) renderTasksForDate(selectedDateStr, taskList);
+// 2. Renderizar tareas en tiempo real desde Firestore
+function renderTasksForDate(dateKey, listElement) {
+  listElement.innerHTML = `<li style="font-size:0.8rem; color:var(--text-dim); text-align:center;">Cargando tareas...</li>`;
+
+  db.collection('tareas')
+    .where("fecha", "==", dateKey)
+    .onSnapshot((querySnapshot) => {
+      listElement.innerHTML = '';
+
+      if (querySnapshot.empty) {
+        listElement.innerHTML = `<li style="font-size:0.8rem; color:var(--text-dim); text-align:center;">No hay tareas ni hobbies guardados.</li>`;
+        return;
+      }
+
+      querySnapshot.forEach((doc) => {
+        const task = doc.data();
+        const docId = doc.id;
+
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
+          <div>
+            <span>${task.texto}</span>
+            <span class="task-tag">${task.slot || 'General'}</span>
+          </div>
+          <button class="delete-btn" onclick="deleteTaskFromFirebase('${docId}')">&times;</button>
+        `;
+        listElement.appendChild(li);
+      });
+    }, (error) => {
+      console.error("Error al escuchar las tareas: ", error);
+      listElement.innerHTML = `<li style="font-size:0.8rem; color:red; text-align:center;">Error al cargar tareas.</li>`;
+    });
 }
 
-function deleteTask(dateKey, index) {
-  if (tasksStorage[dateKey]) {
-    tasksStorage[dateKey].splice(index, 1);
-    if (tasksStorage[dateKey].length === 0) delete tasksStorage[dateKey];
-    localStorage.setItem('shift_planner_tasks', JSON.stringify(tasksStorage));
-    renderTodayView();
-    if (!viewCalendar.classList.contains('hidden')) renderTasksForDate(selectedDateStr, taskList);
-  }
+// 3. Borrar tarea de Firestore
+function deleteTaskFromFirebase(docId) {
+  db.collection('tareas').doc(docId).delete()
+    .then(() => {
+      console.log("Tarea eliminada de la base de datos.");
+    })
+    .catch((error) => {
+      console.error("Error al eliminar la tarea: ", error);
+    });
 }
 
+// 4. Cargar Parte de Noche desde Firestore
+function cargarParteNoche(dateKey) {
+  if (!nightReportsSection) return;
+
+  db.collection('partes_noche').doc(dateKey).get()
+    .then((doc) => {
+      if (doc.exists) {
+        const report = doc.data();
+        reportSecurity.value = report.security || '';
+        reportActas.value = report.actas || 0;
+        reportDetenidos.value = report.detenidos || 0;
+        reportIncidencias.value = report.incidencias || '';
+      } else {
+        reportSecurity.value = '';
+        reportActas.value = 0;
+        reportDetenidos.value = 0;
+        reportIncidencias.value = '';
+      }
+    })
+    .catch((error) => {
+      console.error("Error al cargar el parte de noche: ", error);
+    });
+}
+
+// 5. Guardar Parte de Noche en Firestore
+nightReportForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!selectedDateStr) return;
+
+  const reportData = {
+    security: reportSecurity.value.trim(),
+    actas: parseInt(reportActas.value) || 0,
+    detenidos: parseInt(reportDetenidos.value) || 0,
+    incidencias: reportIncidencias.value.trim(),
+    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  db.collection('partes_noche').doc(selectedDateStr).set(reportData)
+    .then(() => {
+      alert('✅ Parte de noche guardado correctamente en Firebase');
+    })
+    .catch((error) => {
+      console.error("Error al guardar el parte: ", error);
+    });
+});
+
+/* ==========================================================================
+   NAVEGACIÓN Y FORMULARIOS
+   ========================================================================== */
 btnOpenCalendar.addEventListener('click', () => {
   viewToday.classList.add('hidden');
   viewCalendar.classList.remove('hidden');
@@ -701,50 +764,6 @@ todayTaskForm.addEventListener('submit', (e) => {
     addTaskForDate(formatDateKey(new Date()), text, slot);
     todayTaskInput.value = '';
   }
-});
-
-/* ==========================================================================
-   EVENTOS DE PARTES DE NOCHE Y EXPORTACIÓN (CORREGIDOS Y SEPARADOS)
-   ========================================================================== */
-nightReportForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (!selectedDateStr) return;
-
-  nightReportsStorage[selectedDateStr] = {
-    security: reportSecurity.value.trim(),
-    actas: parseInt(reportActas.value) || 0,
-    detenidos: parseInt(reportDetenidos.value) || 0,
-    incidencias: reportIncidencias.value.trim()
-  };
-
-  localStorage.setItem('shift_planner_night_reports', JSON.stringify(nightReportsStorage));
-  alert('✅ Parte de noche guardado correctamente');
-});
-
-btnExportExcel.addEventListener('click', () => {
-  const dataToExport = [];
-
-  Object.keys(nightReportsStorage).sort().forEach(dateKey => {
-    const report = nightReportsStorage[dateKey];
-    dataToExport.push({
-      "Fecha": dateKey,
-      "Seguridad / Novedades": report.security || 'Sin datos',
-      "Actas": report.actas || 0,
-      "Detenidos": report.detenidos || 0,
-      "Incidencias Reseñables": report.incidencias || 'Sin incidencias'
-    });
-  });
-
-  if (dataToExport.length === 0) {
-    alert("No hay partes de noche guardados para exportar.");
-    return;
-  }
-
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Partes Nocturnos");
-
-  XLSX.writeFile(workbook, `Partes_Nocturnos_${formatDateKey(new Date())}.xlsx`);
 });
 
 taskForm.addEventListener('submit', (e) => {
@@ -784,6 +803,33 @@ btnPrevMonth.addEventListener('click', () => {
 btnNextMonth.addEventListener('click', () => { 
   currentDate.setMonth(currentDate.getMonth() + 1); 
   renderCalendar(); 
+});
+
+// Nota: La exportación a Excel sigue funcionando recopilando lo que esté visible o se puede adaptar si guardas todo en Firebase, pero de momento mantiene la estructura local para generar el archivo de forma instantánea.
+btnExportExcel.addEventListener('click', () => {
+  db.collection('partes_noche').get().then((querySnapshot) => {
+    const dataToExport = [];
+    querySnapshot.forEach((doc) => {
+      const report = doc.data();
+      dataToExport.push({
+        "Fecha": doc.id,
+        "Seguridad / Novedades": report.security || 'Sin datos',
+        "Actas": report.actas || 0,
+        "Detenidos": report.detenidos || 0,
+        "Incidencias Reseñables": report.incidencias || 'Sin incidencias'
+      });
+    });
+
+    if (dataToExport.length === 0) {
+      alert("No hay partes de noche guardados para exportar.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Partes Nocturnos");
+    XLSX.writeFile(workbook, `Partes_Nocturnos_${formatDateKey(new Date())}.xlsx`);
+  });
 });
 
 /* ==========================================================================
@@ -831,11 +877,6 @@ function showTomorrowSummary() {
     items.push({ text: '🏋️ Entrenamiento Programado', time: '06:30 - 07:30', type: 'workout' });
   }
 
-  const customTasks = tasksStorage[tomorrowKey] || [];
-  customTasks.forEach(task => {
-    items.push({ text: `📌 ${task.text}`, time: task.slot, type: 'custom' });
-  });
-
   if (items.length === 0) {
     listElem.innerHTML = `<div class="empty-state">No hay nada programado para mañana. ¡Día totalmente libre!</div>`;
   } else {
@@ -879,12 +920,7 @@ setInterval(checkNightlySummaryTrigger, 60000);
 /* ==========================================================================
    INICIALIZACIÓN
    ========================================================================== */
-/* ==========================================================================
-   INICIALIZACIÓN
-   ========================================================================== */
 (function init() {
   renderTodayView();
-  // Sustituimos showTomorrowSummary() por el trigger condicional
-  // Solo saltará si te metes a la app y son las 22:30 o más
   checkNightlySummaryTrigger(); 
 })();

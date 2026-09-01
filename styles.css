@@ -878,3 +878,67 @@ body {
 .modal-footer .btn {
   width: 100%;
 }
+
+/* ==========================================================================
+   AJUSTES RESPONSIVE FINOS PARA TELÉFONOS (PARTE SUPERIOR)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Asegurar que el cuerpo tenga un respiro seguro arriba */
+  body {
+    padding: 12px 10px env(safe-area-inset-bottom);
+  }
+
+  /* Contenedor principal con buen espacio inicial */
+  .app-container {
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  /* Cabecera principal fluida y con espacio libre para no bloquearse */
+  .main-header {
+    position: relative;
+    top: auto;
+    padding: 14px;
+    gap: 14px;
+    z-index: 5;
+  }
+
+  /* Navegación del mes adaptada para que los botones tengan espacio holgado */
+  .month-navigation {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .month-navigation h2 {
+    font-size: 1.05rem;
+    min-width: 110px;
+    text-align: center;
+    flex: 1;
+  }
+
+  /* Forzar tamaño táctil nativo seguro en todos los botones superiores */
+  .main-header .btn,
+  .month-navigation .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+}
+
+/* Extra para pantallas extremadamente estrechas */
+@media (max-width: 380px) {
+  .main-header {
+    padding: 10px;
+  }
+  
+  .month-navigation h2 {
+    font-size: 0.95rem;
+    min-width: 90px;
+  }
+}
