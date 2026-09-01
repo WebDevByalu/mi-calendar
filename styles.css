@@ -880,26 +880,31 @@ body {
 }
 
 /* ==========================================================================
-   CORRECCIÓN DE MARGEN SUPERIOR PARA MÓVILES
+   ESPACIADO SEGURO EN MÓVILES
    ========================================================================== */
+
 @media (max-width: 768px) {
-  html, body {
-    margin: 0 !important;
+  html,
+  body {
+    margin: 0;
   }
 
-  /* Modificamos únicamente el espacio superior seguro sin romper los laterales */
   body {
-    padding-top: max(16px, env(safe-area-inset-top)) !important;
+    padding-top: max(
+      16px,
+      calc(12px + env(safe-area-inset-top))
+    );
+
+    padding-right: 12px;
+    padding-left: 12px;
+
+    padding-bottom: max(
+      16px,
+      calc(12px + env(safe-area-inset-bottom))
+    );
   }
 
   .app-container {
-    margin-top: 8px !important;
-  }
-
-  .today-header,
-  .main-header {
-    margin-top: 0 !important;
-    position: relative !important;
-    top: auto !important;
+    margin-top: 0;
   }
 }
