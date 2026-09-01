@@ -880,65 +880,60 @@ body {
 }
 
 /* ==========================================================================
-   AJUSTES RESPONSIVE FINOS PARA TELÉFONOS (PARTE SUPERIOR)
+   CORRECCIÓN DEFINITIVA PARA MÓVILES (EVITAR CORTE SUPERIOR)
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Asegurar que el cuerpo tenga un respiro seguro arriba */
-  body {
-    padding: 12px 10px env(safe-area-inset-bottom);
-  }
-
-  /* Contenedor principal con buen espacio inicial */
-  .app-container {
-    gap: 14px;
-    margin-top: 4px;
-  }
-
-  /* Cabecera principal fluida y con espacio libre para no bloquearse */
-  .main-header {
-    position: relative;
-    top: auto;
-    padding: 14px;
-    gap: 14px;
-    z-index: 5;
-  }
-
-  /* Navegación del mes adaptada para que los botones tengan espacio holgado */
-  .month-navigation {
+  /* Evitar que el body recorte contenido superior o cree desbordamientos de altura */
+  html, body {
     width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    padding: 8px 8px calc(16px + env(safe-area-inset-bottom)) 8px;
+    margin: 0;
+  }
+
+  /* Asegurar que el contenedor principal comience siempre desde arriba de forma fluida */
+  .app-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .month-navigation h2 {
-    font-size: 1.05rem;
-    min-width: 110px;
-    text-align: center;
-    flex: 1;
+  /* Forzar que las secciones activas no se queden fijas ni absolute */
+  .view-section {
+    position: relative;
+    width: 100%;
+    top: auto;
+    left: auto;
   }
 
-  /* Forzar tamaño táctil nativo seguro en todos los botones superiores */
+  /* Cabecera del calendario y de hoy en posición estática limpia */
+  .main-header, 
+  .today-header {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100%;
+    transform: none !important;
+    box-sizing: border-box;
+    z-index: 1;
+  }
+
+  /* Garantizar que los botones superiores tengan área táctil holgada y sin solapamientos */
   .main-header .btn,
+  .today-header .btn,
   .month-navigation .btn {
     min-height: 44px;
     min-width: 44px;
-    padding: 8px 12px;
     touch-action: manipulation;
-    cursor: pointer;
-  }
-}
-
-/* Extra para pantallas extremadamente estrechas */
-@media (max-width: 380px) {
-  .main-header {
-    padding: 10px;
-  }
-  
-  .month-navigation h2 {
-    font-size: 0.95rem;
-    min-width: 90px;
   }
 }
