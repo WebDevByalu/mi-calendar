@@ -880,60 +880,29 @@ body {
 }
 
 /* ==========================================================================
-   CORRECCIÓN DEFINITIVA PARA MÓVILES (EVITAR CORTE SUPERIOR)
+   CORRECCIÓN DE MARGEN SUPERIOR PARA MÓVILES
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Evitar que el body recorte contenido superior o cree desbordamientos de altura */
   html, body {
-    width: 100%;
-    min-height: 100%;
-    overflow-x: hidden;
-    position: relative;
-    -webkit-text-size-adjust: 100%;
+    /* Forzar que el documento comience siempre desde el origen absoluto superior */
+    margin: 0 !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
   }
 
   body {
-    padding: 8px 8px calc(16px + env(safe-area-inset-bottom)) 8px;
-    margin: 0;
+    /* Añadir un respiro superior en móviles para que nunca se corte el contenido */
+    padding: max(16px, env(safe-area-inset-top)) 12px 16px 12px !important;
   }
 
-  /* Asegurar que el contenedor principal comience siempre desde arriba de forma fluida */
   .app-container {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    margin-top: 8px !important;
   }
 
-  /* Forzar que las secciones activas no se queden fijas ni absolute */
-  .view-section {
-    position: relative;
-    width: 100%;
-    top: auto;
-    left: auto;
-  }
-
-  /* Cabecera del calendario y de hoy en posición estática limpia */
-  .main-header, 
-  .today-header {
+  /* Asegurar que las cabeceras de las vistas respeten el margen superior */
+  .today-header,
+  .main-header {
+    margin-top: 0 !important;
     position: relative !important;
     top: auto !important;
-    left: auto !important;
-    width: 100%;
-    transform: none !important;
-    box-sizing: border-box;
-    z-index: 1;
-  }
-
-  /* Garantizar que los botones superiores tengan área táctil holgada y sin solapamientos */
-  .main-header .btn,
-  .today-header .btn,
-  .month-navigation .btn {
-    min-height: 44px;
-    min-width: 44px;
-    touch-action: manipulation;
   }
 }
