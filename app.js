@@ -958,6 +958,94 @@ const summaryModal = document.getElementById('summary-modal');
 if (btnCloseModal && summaryModal) btnCloseModal.onclick = () => summaryModal.classList.add('hidden');
 if (btnAckModal && summaryModal) btnAckModal.onclick = () => summaryModal.classList.add('hidden');
 
+/* ==========================================================================
+   NOTIFICACIONES PUSH DIARIAS (22:30) - Tareas del dia siguiente
+   ========================================================================== */
+
+// Registra el Service Worker (necesario para notificaciones en Android/iOS)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('scheduleDaily');
+    }
+  }).catch((err) => {
+    console.warn('No se pudo registrar el Service Worker:', err);
+  });
+}
+
+// Pide permiso de notificaciones una sola vez
+function pedirPermisoNotificaciones() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+// Devuelve un resumen de texto con el turno + tareas guardadas de manana
+function buildTomorrowSummaryText() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = formatDateKey(tomorrow);
+
+  const autoWorkouts = calculateMonthlyWorkouts(tomorrow.getFullYear(), tomorrow.getMonth());
+  const state = getEffectiveDayState(tomorrow, autoWorkouts);
+
+  const lineas = [];
+
+  if (state.isVacation) {
+    lineas.push('🌴 Vacaciones (noche cancelada)');
+  } else if (!state.isCleared) {
+    if (state.shift.code === 'N1') {
+      lineas.push('💼 Turno de Noche 1 (22:00-07:00)');
+      lineas.push('☕ Siesta pre-turno 18:30-20:00');
+    } else if (state.shift.code === 'N2') {
+      lineas.push('💼 Turno de Noche 2 (22:00-07:00)');
+    } else if (state.shift.code === 'L1') {
+      lineas.push('🛌 Saliente de noche (07:30-14:30)');
+    } else {
+      lineas.push(`🌟 ${state.shift.name}`);
+    }
+    if (state.hasSchool) lineas.push('🎓 Grado Superior 08:00-14:00');
+    if (state.hasWorkout) lineas.push('🏋️ Entrenamiento 06:30-07:30');
+  }
+
+  // Tareas guardadas en Firestore para la fecha de manana
+  authReady.then(() => db.collection('tareas').where('fecha', '==', tomorrowKey).get())
+    .then((snap) => {
+      snap.forEach((doc) => {
+        const t = doc.data();
+        lineas.push(`• ${t.texto}${t.slot ? ' (' + t.slot + ')' : ''}`);
+      });
+    })
+    .catch(() => {})
+    .then(() => {
+      const body = lineas.length
+        ? lineas.join('\n')
+        : 'No tienes nada programado para mañana. ¡Día totalmente libre!';
+
+      const options = { weekday: 'long', day: 'numeric', month: 'long' };
+
+      const mostrar = () => {
+        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(`Mañana, ${tomorrow.toLocaleDateString('es-ES', options)}`, {
+              body: body,
+              icon: 'images/icon3.png',
+              badge: 'images/icon3.png',
+              tag: 'resumen-manana'
+            });
+          }).catch(() => {});
+        } else {
+          new Notification('Resumen de mañana', { body: body, icon: 'images/icon3.png' });
+        }
+      };
+
+      if (Notification.permission === 'granted') mostrar();
+    });
+
+  return lineas;
+}
+
 function checkNightlySummaryTrigger() {
   const now = new Date();
   const hours = now.getHours();
@@ -970,6 +1058,7 @@ function checkNightlySummaryTrigger() {
   const lastShown = localStorage.getItem('last_nightly_summary_date');
 
   if (lastShown !== todayKey) {
+    buildTomorrowSummaryText(); // Notificacion push con las tareas de manana
     showTomorrowSummary();
     localStorage.setItem('last_nightly_summary_date', todayKey);
   }
@@ -981,6 +1070,7 @@ setInterval(checkNightlySummaryTrigger, 60000);
    INICIALIZACIÓN
    ========================================================================== */
 (function init() {
+  pedirPermisoNotificaciones();
   renderTodayView();
   checkNightlySummaryTrigger(); 
 })();
