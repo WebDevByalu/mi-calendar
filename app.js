@@ -962,6 +962,62 @@ if (btnAckModal && summaryModal) btnAckModal.onclick = () => summaryModal.classL
    NOTIFICACIONES PUSH DIARIAS (22:30) - Tareas del dia siguiente
    ========================================================================== */
 
+const NOTIFY_DB_NAME = 'miagenda-notify-db';
+const NOTIFY_STORE_NAME = 'snapshots';
+
+function openNotificationDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(NOTIFY_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(NOTIFY_STORE_NAME)) {
+        db.createObjectStore(NOTIFY_STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('No se pudo abrir la base de datos de notificaciones'));
+  });
+}
+
+async function saveNotificationSummary(title, body) {
+  try {
+    const db = await openNotificationDb();
+    const tx = db.transaction(NOTIFY_STORE_NAME, 'readwrite');
+    tx.objectStore(NOTIFY_STORE_NAME).put({
+      id: 'tomorrow-summary',
+      title,
+      body,
+      updatedAt: Date.now()
+    });
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('No se pudo guardar el resumen de notificaciones'));
+      tx.onabort = () => reject(tx.error || new Error('Se abortó la escritura del resumen de notificaciones'));
+    });
+  } catch (e) {
+    console.warn('No se pudo guardar el resumen para la notificación:', e);
+  }
+}
+
+async function readNotificationSummary() {
+  try {
+    const db = await openNotificationDb();
+    const tx = db.transaction(NOTIFY_STORE_NAME, 'readonly');
+    const request = tx.objectStore(NOTIFY_STORE_NAME).get('tomorrow-summary');
+
+    return await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error('No se pudo leer el resumen de notificaciones'));
+    });
+  } catch (e) {
+    console.warn('No se pudo leer el resumen para la notificación:', e);
+    return null;
+  }
+}
+
 // Registra el Service Worker (necesario para notificaciones en Android/iOS)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then((reg) => {
@@ -1068,22 +1124,32 @@ function buildTomorrowSummaryText() {
   }
 
   const mostrar = (lineas) => {
+    const resumenCompacto = lineas.length
+      ? lineas.map((l) => l.replace(/^\s*[-•*]\s*/, '')).slice(0, 4).join('\n')
+      : 'Nada programado. Día libre total.';
+
     const body = lineas.length
-      ? lineas.join('\n')
+      ? `• ${lineas.map((l) => l.replace(/^\s*[-•*]\s*/, '')).join('\n• ')}`
       : 'No tienes nada programado para mañana. ¡Día totalmente libre!';
 
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    const titulo = `Mañana, ${tomorrow.toLocaleDateString('es-ES', options)}`;
+    const titulo = `📌 Mañana: ${tomorrow.toLocaleDateString('es-ES', options)}`;
+
+    saveNotificationSummary(titulo, body);
 
     const enviar = () => {
       const viaSW = () => {
         if (navigator.serviceWorker && navigator.serviceWorker.controller) {
           return navigator.serviceWorker.ready
             .then((reg) => reg.showNotification(titulo, {
-              body: body,
+              body: resumenCompacto,
               icon: 'images/icon3.png',
               badge: 'images/icon3.png',
-              tag: 'resumen-manana'
+              tag: 'resumen-manana',
+              requireInteraction: true,
+              renotify: true,
+              vibrate: [80, 60, 80],
+              actions: [{ action: 'open', title: 'Abrir app' }]
             }))
             .catch((e) => { console.warn('Fallo el Service Worker, uso la via directa:', e); throw e; });
         }
@@ -1093,7 +1159,13 @@ function buildTomorrowSummaryText() {
       viaSW()
         .catch(() => {
           try {
-            new Notification(titulo, { body: body, icon: 'images/icon3.png', tag: 'resumen-manana' });
+            new Notification(titulo, {
+              body: resumenCompacto,
+              icon: 'images/icon3.png',
+              tag: 'resumen-manana',
+              requireInteraction: true,
+              vibrate: [80, 60, 80]
+            });
           } catch (e) {
             console.warn('No se pudo enviar la notificacion:', e);
           }
