@@ -973,11 +973,42 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Pide permiso de notificaciones una sola vez
-function pedirPermisoNotificaciones() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => {});
+// Pide permiso de notificaciones cuando el usuario pulsa el boton
+// (Chrome ignora requestPermission si no hay un clic previo)
+async function pedirPermisoNotificaciones() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+
+  try {
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  } catch (e) {
+    return false;
+  }
+}
+
+// Muestra/oculta el boton segun el estado del permiso
+function actualizarBannerNotificaciones() {
+  const banner = document.getElementById('notify-banner');
+  const btn = document.getElementById('btn-enable-notifications');
+  const status = document.getElementById('notify-status');
+  if (!banner || !btn || !status) return;
+
+  if (!('Notification' in window)) {
+    status.textContent = 'Tu navegador no soporta notificaciones.';
+    btn.style.display = 'none';
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    status.textContent = '✅ Notificaciones activadas. Cada día a las 22:30 recibirás el resumen de mañana.';
+    btn.style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    status.textContent = '⛔ Notificaciones bloqueadas. Actívalas en los ajustes del navegador para este sitio.';
+    btn.style.display = 'none';
+  } else {
+    status.textContent = 'Pulsa el botón para recibir el resumen de mañana cada día a las 22:30.';
   }
 }
 
@@ -1067,10 +1098,26 @@ function checkNightlySummaryTrigger() {
 setInterval(checkNightlySummaryTrigger, 60000);
 
 /* ==========================================================================
+   BANNER DE ACTIVAR NOTIFICACIONES
+   ========================================================================== */
+document.getElementById('btn-enable-notifications')?.addEventListener('click', async () => {
+  const ok = await pedirPermisoNotificaciones();
+  actualizarBannerNotificaciones();
+  if (ok) {
+    // Activa también el temporizador del Service Worker
+    navigator.serviceWorker?.ready.then((reg) => {
+      navigator.serviceWorker.controller?.postMessage('scheduleDaily');
+    }).catch(() => {});
+  }
+});
+
+actualizarBannerNotificaciones();
+
+
+/* ==========================================================================
    INICIALIZACIÓN
    ========================================================================== */
 (function init() {
-  pedirPermisoNotificaciones();
   renderTodayView();
   checkNightlySummaryTrigger(); 
 })();
