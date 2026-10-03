@@ -15,6 +15,65 @@
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Las reglas de Firestore exigen request.auth != null y que el UID sea el tuyo.
+// Por eso la app pide email/contraseña: es lo único que genera ese UID.
+const ALLOWED_UID = 'sGwJTIlWs7Sb7HQBWRLxm285jeE3';
+
+const loginOverlay = document.getElementById('login-overlay');
+const loginEmail = document.getElementById('login-email');
+const loginPassword = document.getElementById('login-password');
+const loginError = document.getElementById('login-error');
+
+let resolveAuth;
+let rejectAuth;
+const authReady = new Promise((resolve, reject) => {
+  resolveAuth = resolve;
+  rejectAuth = reject;
+});
+
+function showLoginError(msg) {
+  loginError.textContent = msg;
+}
+
+// Solo desbloqueamos si el UID coincide con el de las reglas.
+function handleAuthUser(user) {
+  if (user && user.uid === ALLOWED_UID) {
+    loginOverlay.style.display = 'none';
+    resolveAuth(user);
+    return true;
+  }
+  if (user) {
+    signOut();
+    showLoginError('Esta cuenta no tiene permisos. Usa la cuenta autorizada.');
+  }
+  return false;
+}
+
+firebase.auth().onAuthStateChanged(handleAuthUser);
+
+function signOut() {
+  if (firebase.auth().currentUser) firebase.auth().signOut();
+  loginOverlay.style.display = 'flex';
+}
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  loginError.textContent = '';
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+  if (!email || !password) {
+    return showLoginError('Introduce correo y contraseña.');
+  }
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, password);
+  } catch (e) {
+    showLoginError('No se pudo iniciar sesión: ' + e.message);
+  }
+});
+
+loginPassword.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+
 
 /* ==========================================================================
    CONFIGURACIÓN BASE Y ANCLA DEL TURNO (2N-4L)
@@ -22,63 +81,63 @@ const db = firebase.firestore();
 const ANCHOR_DATE = new Date(2026, 8, 4); // 04/09/2026 = Noche 1
 
 const SHIFT_MAP = {
-  0: { 
-    code: 'N1', 
-    name: 'Noche 1 (22:00 - 07:00)', 
+  0: {
+    code: 'N1',
+    name: 'Noche 1 (22:00 - 07:00)',
     hours: 9,
-    canWorkout: true, 
-    energyLevel: '85%', 
-    energyStatus: '⚡ ALTA ENERGÍA (Pre-turno)', 
+    canWorkout: true,
+    energyLevel: '85%',
+    energyStatus: '⚡ ALTA ENERGÍA (Pre-turno)',
     desc: 'Mañana de clase (08:00-14:00) o entreno previo. Tarde libre con siesta pre-turno obligatoria.',
     restAdvice: '💤 **Siesta Pre-Turno:** Dormir 90 min (18:30 a 20:00). Evita cafeína a partir de las 19:00.'
   },
-  1: { 
-    code: 'N2', 
-    name: 'Noche 2 (22:00 - 07:00)', 
+  1: {
+    code: 'N2',
+    name: 'Noche 2 (22:00 - 07:00)',
     hours: 9,
-    canWorkout: false, 
-    energyLevel: '40%', 
-    energyStatus: '⚠️ TRABAJANDO / RESERVA BIOMÉTRICA', 
+    canWorkout: false,
+    energyLevel: '40%',
+    energyStatus: '⚠️ TRABAJANDO / RESERVA BIOMÉTRICA',
     desc: 'Salida del primer turno a las 07:00. Descanso tras la clase o al medio día.',
     restAdvice: '🕶️ **Fase Crítica:** Al salir a las 07:00, usa gafas de sol oscuras. Bloque de sueño de 14:30 a 21:00.'
   },
-  2: { 
-    code: 'L1', 
-    name: 'Saliente de Noche (Libre 1)', 
+  2: {
+    code: 'L1',
+    name: 'Saliente de Noche (Libre 1)',
     hours: 0,
-    canWorkout: false, 
-    energyLevel: '30%', 
-    energyStatus: '🛑 RECUPERACIÓN BIOMÉTRICA', 
+    canWorkout: false,
+    energyLevel: '30%',
+    energyStatus: '🛑 RECUPERACIÓN BIOMÉTRICA',
     desc: 'Salida del turno a las 07:00. Sueño recuperador matutino/mediodía.',
     restAdvice: '🛌 **Recuperación Saliente:** Prioriza 6h de sueño inmediato (07:30 a 13:30). Habitación a oscuras.'
   },
-  3: { 
-    code: 'L2', 
-    name: 'Día Libre 2', 
+  3: {
+    code: 'L2',
+    name: 'Día Libre 2',
     hours: 0,
-    canWorkout: true, 
-    energyLevel: '100%', 
-    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', 
+    canWorkout: true,
+    energyLevel: '100%',
+    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)',
     desc: 'Totalmente restaurado. Entreno 06:30, clase y tarde libre.',
     restAdvice: '🌙 **Normalización Circadiana:** Dormir en horario nocturno natural (23:00 a 06:30).'
   },
-  4: { 
-    code: 'L3', 
-    name: 'Día Libre 3', 
+  4: {
+    code: 'L3',
+    name: 'Día Libre 3',
     hours: 0,
-    canWorkout: true, 
-    energyLevel: '100%', 
-    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)', 
+    canWorkout: true,
+    energyLevel: '100%',
+    energyStatus: '🌟 PICO COGNITIVO & FÍSICO (10/10)',
     desc: 'Rendimiento máximo. Entreno 06:30, clase y tarde completa libre.',
     restAdvice: '⚡ **Consolidación:** Mantén la higiene del sueño nocturno (8h continuas).'
   },
-  5: { 
-    code: 'L4', 
-    name: 'Día Libre 4', 
+  5: {
+    code: 'L4',
+    name: 'Día Libre 4',
     hours: 0,
-    canWorkout: true, 
-    energyLevel: '90%', 
-    energyStatus: '🟢 RENDIMIENTO ALTO', 
+    canWorkout: true,
+    energyLevel: '90%',
+    energyStatus: '🟢 RENDIMIENTO ALTO',
     desc: 'Último libre. Clase de 08:00 a 14:00. Tarde relajada acumulando descanso.',
     restAdvice: '😴 **Carga Previa:** Dormir al menos 8h esta noche preparando el reinicio de noches.'
   }
@@ -87,8 +146,8 @@ const SHIFT_MAP = {
 /* ==========================================================================
    ESTADO GLOBAL Y HISTORIAL (UNDO)
    ========================================================================== */
-let currentDate = new Date(); 
-let selectedDateStr = formatDateKey(new Date()); 
+let currentDate = new Date();
+let selectedDateStr = formatDateKey(new Date());
 
 let overridesStorage = JSON.parse(localStorage.getItem('shift_planner_overrides')) || {};
 let historyStack = [];
@@ -194,10 +253,10 @@ function getShiftInfo(date) {
   const normTarget = normalizeDate(date);
   const diffTime = normTarget - normAnchor;
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  
+
   let index = diffDays % 6;
   if (index < 0) index += 6;
-  
+
   return { index, ...SHIFT_MAP[index] };
 }
 
@@ -209,7 +268,7 @@ function calculateMonthlyWorkouts(year, month) {
   let currentWeek = [];
   let runner = new Date(firstDay);
 
-  const dayOfWeek = (runner.getDay() + 6) % 7; 
+  const dayOfWeek = (runner.getDay() + 6) % 7;
   runner.setDate(runner.getDate() - dayOfWeek);
 
   while (runner <= lastDay || currentWeek.length > 0) {
@@ -269,7 +328,7 @@ function updateMetricsDisplays() {
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const autoWorkoutsMonth = calculateMonthlyWorkouts(year, month);
-  
+
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
     const state = getEffectiveDayState(date, autoWorkoutsMonth);
@@ -286,7 +345,7 @@ function updateMetricsDisplays() {
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(year, m, d);
       const state = getEffectiveDayState(date, autoWorkoutsYearMonth);
-      
+
       const isShiftDay = (state.shift.code === 'N1' || state.shift.code === 'N2');
       if (state.isVacation && isShiftDay) {
         annualVacationDaysCount++;
@@ -296,7 +355,7 @@ function updateMetricsDisplays() {
 
   if (monthlyHoursDisplay) monthlyHoursDisplay.innerText = `${monthlyHours}h`;
   if (vacationCountDisplay) vacationCountDisplay.innerText = `${annualVacationDaysCount} días`;
-  
+
   if (annualHoursDisplay && annualHoursDisplay.parentElement) {
     annualHoursDisplay.parentElement.style.display = 'none';
   }
@@ -360,25 +419,25 @@ function renderBlocksIntoContainer(state, targetContainer) {
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entreno Manteniendo Rutina', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
     blocks.push({ time: 'Todo el día', title: '🌴 VACACIONES: Noche de Trabajo Cancelada', type: 'free' });
-  } 
+  }
   else if (shift.index === 0) {
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entrenamiento Fuerza / Cardio', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
     blocks.push({ time: '14:00 - 18:00', title: '📖 Estudio / Hobbies / Comida', type: 'free' });
     blocks.push({ time: '18:30 - 20:00', title: '☕ Siesta Pre-turno (90 min)', type: 'sleep' });
     blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 1 (9h)', type: 'work' });
-  } 
+  }
   else if (shift.index === 1) {
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entreno Matutino', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
     blocks.push({ time: '14:30 - 21:00', title: '😴 Sueño Principal Recuperador', type: 'sleep' });
     blocks.push({ time: '22:00 - 07:00', title: '💼 Turno de Noche 2 (9h)', type: 'work' });
-  } 
+  }
   else if (shift.index === 2) {
     blocks.push({ time: '07:30 - 14:30', title: '😴 Sueño Obligatorio Saliente', type: 'sleep' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Clases (Conflicto de Turno)', type: 'school' });
     blocks.push({ time: '14:30 - 23:00', title: '🎮 Ocio Bajo Impacto / Hobbies', type: 'free' });
-  } 
+  }
   else {
     if (state.hasWorkout) blocks.push({ time: '06:30 - 07:30', title: '🏋️ Entreno Máximo Rendimiento', type: 'workout' });
     if (state.hasSchool)  blocks.push({ time: '08:00 - 14:00', title: '🎓 Grado Superior Mantenimiento', type: 'school' });
@@ -401,7 +460,7 @@ function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  
+
   monthDisplay.innerText = `${monthNames[month]} ${year}`;
   calendarGrid.innerHTML = '';
 
@@ -424,7 +483,7 @@ function renderCalendar() {
 
     const cell = document.createElement('div');
     const isRangeStart = rangeStartDate && formatDateKey(rangeStartDate) === dateKey;
-    
+
     cell.className = `day-cell ${selectedDateStr === dateKey ? 'selected' : ''} ${todayKey === dateKey ? 'today' : ''} ${state.isVacation ? 'vacation-day' : ''} ${isRangeStart ? 'range-selecting' : ''}`;
     cell.onclick = () => handleDateClick(date);
 
@@ -518,7 +577,7 @@ function selectCalendarDate(date) {
     : (state.isCleared ? `Día despejado manualmente.` : `<strong>Batería estimada: ${state.shift.energyLevel} (${state.shift.energyStatus})</strong><br>${state.shift.desc}`);
 
   if (restRecommendationText) {
-    restRecommendationText.innerHTML = state.isVacation 
+    restRecommendationText.innerHTML = state.isVacation
       ? `🌴 **Vacaciones:** Noche de trabajo libre. Mantienes tus rutinas de clase o entreno activas.`
       : state.shift.restAdvice;
   }
@@ -621,7 +680,7 @@ btnResetDay.addEventListener('click', () => {
   pushStateToHistory();
   delete overridesStorage[selectedDateStr];
   localStorage.setItem('shift_planner_overrides', JSON.stringify(overridesStorage));
-  
+
   const [year, month, day] = selectedDateStr.split('-').map(Number);
   selectCalendarDate(new Date(year, month - 1, day));
   renderTodayView();
@@ -633,12 +692,12 @@ btnResetDay.addEventListener('click', () => {
 
 // 1. Añadir tarea a Firestore
 function addTaskForDate(dateStr, text, slot) {
-  db.collection('tareas').add({
+  authReady.then(() => db.collection('tareas').add({
     fecha: dateStr,
     texto: text,
     slot: slot || 'General',
     creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-  })
+  }))
   .then((docRef) => {
     console.log("¡Tarea guardada en la base de datos! ID: ", docRef.id);
   })
@@ -651,7 +710,7 @@ function addTaskForDate(dateStr, text, slot) {
 function renderTasksForDate(dateKey, listElement) {
   listElement.innerHTML = `<li style="font-size:0.8rem; color:var(--text-dim); text-align:center;">Cargando tareas...</li>`;
 
-  db.collection('tareas')
+  authReady.then(() => db.collection('tareas')
     .where("fecha", "==", dateKey)
     .onSnapshot((querySnapshot) => {
       listElement.innerHTML = '';
@@ -676,15 +735,16 @@ function renderTasksForDate(dateKey, listElement) {
         `;
         listElement.appendChild(li);
       });
-    }, (error) => {
-      console.error("Error al escuchar las tareas: ", error);
-      listElement.innerHTML = `<li style="font-size:0.8rem; color:red; text-align:center;">Error al cargar tareas.</li>`;
-    });
+    })
+    .catch((error) => {
+      console.error("Error al cargar tareas: ", error);
+      listElement.innerHTML = `<li style="font-size:0.8rem; color:red; text-align:center;">${error.message}</li>`;
+    }));
 }
 
 // 3. Borrar tarea de Firestore
 function deleteTaskFromFirebase(docId) {
-  db.collection('tareas').doc(docId).delete()
+  authReady.then(() => db.collection('tareas').doc(docId).delete())
     .then(() => {
       console.log("Tarea eliminada de la base de datos.");
     })
@@ -697,7 +757,7 @@ function deleteTaskFromFirebase(docId) {
 function cargarParteNoche(dateKey) {
   if (!nightReportsSection) return;
 
-  db.collection('partes_noche').doc(dateKey).get()
+  authReady.then(() => db.collection('partes_noche').doc(dateKey).get())
     .then((doc) => {
       if (doc.exists) {
         const report = doc.data();
@@ -730,7 +790,7 @@ nightReportForm.addEventListener('submit', (e) => {
     actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
   };
 
-  db.collection('partes_noche').doc(selectedDateStr).set(reportData)
+  authReady.then(() => db.collection('partes_noche').doc(selectedDateStr).set(reportData))
     .then(() => {
       alert('✅ Parte de noche guardado correctamente en Firebase');
     })
@@ -783,7 +843,7 @@ function toggleOverrideForDate(date, field) {
   pushStateToHistory();
   const dateKey = formatDateKey(date);
   if (!overridesStorage[dateKey]) overridesStorage[dateKey] = {};
-  
+
   const autoWorkoutDays = calculateMonthlyWorkouts(date.getFullYear(), date.getMonth());
   const state = getEffectiveDayState(date, autoWorkoutDays);
 
@@ -795,19 +855,19 @@ function toggleOverrideForDate(date, field) {
   renderTodayView();
 }
 
-btnPrevMonth.addEventListener('click', () => { 
-  currentDate.setMonth(currentDate.getMonth() - 1); 
-  renderCalendar(); 
+btnPrevMonth.addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  renderCalendar();
 });
 
-btnNextMonth.addEventListener('click', () => { 
-  currentDate.setMonth(currentDate.getMonth() + 1); 
-  renderCalendar(); 
+btnNextMonth.addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  renderCalendar();
 });
 
 // Nota: La exportación a Excel sigue funcionando recopilando lo que esté visible o se puede adaptar si guardas todo en Firebase, pero de momento mantiene la estructura local para generar el archivo de forma instantánea.
 btnExportExcel.addEventListener('click', () => {
-  db.collection('partes_noche').get().then((querySnapshot) => {
+  authReady.then(() => db.collection('partes_noche').get()).then((querySnapshot) => {
     const dataToExport = [];
     querySnapshot.forEach((doc) => {
       const report = doc.data();
