@@ -63,9 +63,13 @@ async function readNotificationSummary() {
   }
 }
 
+// PRUEBA TEMPORAL: cambiar a las 00:49 para verificar la notificación.
+const TEST_HOUR = 0;
+const TEST_MINUTE = 54;
+
 function msUntilNext2230() {
   const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 22, 30, 0, 0);
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), TEST_HOUR, TEST_MINUTE, 0, 0);
   if (target <= now) target.setDate(target.getDate() + 1);
   return target - now;
 }
