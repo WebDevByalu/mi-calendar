@@ -993,23 +993,50 @@ function actualizarBannerNotificaciones() {
   const banner = document.getElementById('notify-banner');
   const btn = document.getElementById('btn-enable-notifications');
   const status = document.getElementById('notify-status');
+  const statusMain = document.getElementById('notify-status-main');
   if (!banner || !btn || !status) return;
 
-  if (!('Notification' in window)) {
-    status.textContent = 'Tu navegador no soporta notificaciones.';
-    btn.style.display = 'none';
-    return;
-  }
+  let msg = '';
 
-  if (Notification.permission === 'granted') {
-    status.textContent = '✅ Notificaciones activadas. Cada día a las 22:30 recibirás el resumen de mañana.';
+  if (!('Notification' in window)) {
+    msg = 'Tu navegador no soporta notificaciones.';
+    btn.style.display = 'none';
+  } else if (Notification.permission === 'granted') {
+    msg = '✅ Notificaciones activas · resumen cada día a las 22:30';
     btn.style.display = 'none';
   } else if (Notification.permission === 'denied') {
-    status.textContent = '⛔ Notificaciones bloqueadas. Actívalas en los ajustes del navegador para este sitio.';
+    msg = '⛔ Notificaciones bloqueadas · actívalas en los ajustes del navegador';
     btn.style.display = 'none';
   } else {
-    status.textContent = 'Pulsa el botón para recibir el resumen de mañana cada día a las 22:30.';
+    msg = '🔔 Activa las notificaciones con el botón de la pantalla de inicio de sesión.';
   }
+
+  status.textContent = msg;
+  if (statusMain) statusMain.textContent = msg;
+
+  // Si ya no queda boton visible, muestra el de la vista principal
+  const btnMain = document.getElementById('btn-enable-notifications-main');
+  const bannerMain = document.getElementById('notify-banner-main');
+  if (btnMain && bannerMain) {
+    const logueado = loginOverlay && loginOverlay.style.display === 'none';
+    if (logueado) {
+      bannerMain.innerHTML = '<button id="btn-enable-notifications-main" class="btn btn-secondary" style="font-size:0.8rem; padding:9px 14px;">🔔 Activar notificaciones diarias (22:30)</button>';
+      document.getElementById('btn-enable-notifications-main')?.addEventListener('click', activarNotificaciones);
+    } else {
+      bannerMain.style.display = 'none';
+    }
+  }
+}
+
+function activarNotificaciones() {
+  pedirPermisoNotificaciones().then((ok) => {
+    actualizarBannerNotificaciones();
+    if (ok) {
+      navigator.serviceWorker?.ready.then(() => {
+        navigator.serviceWorker.controller?.postMessage('scheduleDaily');
+      }).catch(() => {});
+    }
+  });
 }
 
 // Devuelve un resumen de texto con el turno + tareas guardadas de manana
@@ -1100,16 +1127,8 @@ setInterval(checkNightlySummaryTrigger, 60000);
 /* ==========================================================================
    BANNER DE ACTIVAR NOTIFICACIONES
    ========================================================================== */
-document.getElementById('btn-enable-notifications')?.addEventListener('click', async () => {
-  const ok = await pedirPermisoNotificaciones();
-  actualizarBannerNotificaciones();
-  if (ok) {
-    // Activa también el temporizador del Service Worker
-    navigator.serviceWorker?.ready.then((reg) => {
-      navigator.serviceWorker.controller?.postMessage('scheduleDaily');
-    }).catch(() => {});
-  }
-});
+document.getElementById('btn-enable-notifications')?.addEventListener('click', activarNotificaciones);
+document.getElementById('btn-enable-notifications-main')?.addEventListener('click', activarNotificaciones);
 
 actualizarBannerNotificaciones();
 
