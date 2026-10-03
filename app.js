@@ -1067,39 +1067,57 @@ function buildTomorrowSummaryText() {
     if (state.hasWorkout) lineas.push('🏋️ Entrenamiento 06:30-07:30');
   }
 
-  // Tareas guardadas en Firestore para la fecha de manana
-  authReady.then(() => db.collection('tareas').where('fecha', '==', tomorrowKey).get())
-    .then((snap) => {
-      snap.forEach((doc) => {
-        const t = doc.data();
-        lineas.push(`• ${t.texto}${t.slot ? ' (' + t.slot + ')' : ''}`);
-      });
-    })
-    .catch(() => {})
-    .then(() => {
-      const body = lineas.length
-        ? lineas.join('\n')
-        : 'No tienes nada programado para mañana. ¡Día totalmente libre!';
+  const mostrar = (lineas) => {
+    const body = lineas.length
+      ? lineas.join('\n')
+      : 'No tienes nada programado para mañana. ¡Día totalmente libre!';
 
-      const options = { weekday: 'long', day: 'numeric', month: 'long' };
+    const options = { weekday: 'long', day: 'numeric', month: 'long' };
+    const titulo = `Mañana, ${tomorrow.toLocaleDateString('es-ES', options)}`;
 
-      const mostrar = () => {
-        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-          navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(`Mañana, ${tomorrow.toLocaleDateString('es-ES', options)}`, {
+    const enviar = () => {
+      const viaSW = () => {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          return navigator.serviceWorker.ready
+            .then((reg) => reg.showNotification(titulo, {
               body: body,
               icon: 'images/icon3.png',
               badge: 'images/icon3.png',
               tag: 'resumen-manana'
-            });
-          }).catch(() => {});
-        } else {
-          new Notification('Resumen de mañana', { body: body, icon: 'images/icon3.png' });
+            }))
+            .catch((e) => { console.warn('Fallo el Service Worker, uso la via directa:', e); throw e; });
         }
+        throw new Error('sin service worker');
       };
 
-      if (Notification.permission === 'granted') mostrar();
-    });
+      viaSW()
+        .catch(() => {
+          try {
+            new Notification(titulo, { body: body, icon: 'images/icon3.png', tag: 'resumen-manana' });
+          } catch (e) {
+            console.warn('No se pudo enviar la notificacion:', e);
+          }
+        });
+    };
+
+    if (Notification.permission === 'granted') enviar();
+  };
+
+  // Las tareas de Firestore llegan despues; no deben bloquear la notificacion.
+  mostrar(lineas);
+
+  firebase.auth().currentUser
+    ? db.collection('tareas').where('fecha', '==', tomorrowKey).get()
+      .then((snap) => {
+        const extra = [];
+        snap.forEach((doc) => {
+          const t = doc.data();
+          extra.push(`• ${t.texto}${t.slot ? ' (' + t.slot + ')' : ''}`);
+        });
+        if (extra.length) mostrar(lineas.concat(extra));
+      })
+      .catch(() => {})
+    : null;
 
   return lineas;
 }
@@ -1109,7 +1127,7 @@ function checkNightlySummaryTrigger() {
   const hours = now.getHours();
   const minutes = now.getMinutes();
 
-  const isNightTime = (hours > 22) || (hours === 22 && minutes >= 30);
+  const isNightTime = (hours >= 22 && hours < 24); // desde las 22:30 hasta medianoche
   if (!isNightTime) return;
 
   const todayKey = formatDateKey(now);
@@ -1129,6 +1147,15 @@ setInterval(checkNightlySummaryTrigger, 60000);
    ========================================================================== */
 document.getElementById('btn-enable-notifications')?.addEventListener('click', activarNotificaciones);
 document.getElementById('btn-enable-notifications-main')?.addEventListener('click', activarNotificaciones);
+
+// Boton de prueba: envia la notificacion ahora mismo
+document.getElementById('btn-test-notification')?.addEventListener('click', () => {
+  if (Notification.permission !== 'granted') {
+    alert('Primero activa las notificaciones.');
+    return;
+  }
+  buildTomorrowSummaryText();
+});
 
 actualizarBannerNotificaciones();
 

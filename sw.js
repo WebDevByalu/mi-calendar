@@ -26,7 +26,7 @@ let timerId = null;
 
 function msUntilNext2230() {
   const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 24, 30, 0, 0);
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 22, 30, 0, 0);
   if (target <= now) target.setDate(target.getDate() + 1);
   return target - now;
 }
